@@ -1,5 +1,16 @@
 let isInitialLoad = true;
 
+// 配置 marked.js 选项
+marked.setOptions({
+    breaks: true,  // 支持换行
+    gfm: true,     // 启用 GitHub 风格的 Markdown
+    headerIds: true, // 为标题添加 ID
+    mangle: false,   // 不转义内联 HTML
+    sanitize: false, // 不清理 HTML（由 DOMPurify 处理）
+    smartLists: true, // 智能列表
+    smartypants: true // 智能标点
+});
+
 document.addEventListener('DOMContentLoaded', function () {
      // 获取主要 DOM 元素
     const chatBox = document.getElementById('chat-box');               // 聊天消息容器
@@ -15,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const email = document.querySelector('.user-info span')?.textContent; // 当前用户邮箱，用于加载和清空历史
 
     /** 滚动到底部 */
-    function scrollToBottom() {
+    function scrollToBottom() {t
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
@@ -41,40 +52,53 @@ document.addEventListener('DOMContentLoaded', function () {
             const cleanHtml = DOMPurify.sanitize(rawHtml);
             messageDiv.innerHTML = cleanHtml;
             
-            // 等待DOM更新后应用代码高亮
-            setTimeout(() => {
-                // 只对当前消息中的代码块应用高亮
-                const codeBlocks = messageDiv.querySelectorAll('pre code');
-                codeBlocks.forEach(block => {
-                    // 确保代码块有正确的语言类
-                    if (!block.className.includes('language-')) {
-                        block.className = 'language-javascript';
+            // 立即应用代码高亮
+            // 只对当前消息中的代码块应用高亮
+            const codeBlocks = messageDiv.querySelectorAll('pre code');
+            codeBlocks.forEach(block => {
+                // 检查是否已经有语言类
+                if (!block.className.includes('language-')) {
+                    // 尝试从父元素或兄弟元素中获取语言信息
+                    const preElement = block.closest('pre');
+                    if (preElement && preElement.className.includes('language-')) {
+                        block.className = preElement.className;
+                    } else {
+                        // 默认使用 javascript，但可以根据内容推断
+                        const codeContent = block.textContent || '';
+                        if (codeContent.includes('def ') || codeContent.includes('import ') || codeContent.includes('print(')) {
+                            block.className = 'language-python';
+                        } else if (codeContent.includes('function ') || codeContent.includes('const ') || codeContent.includes('let ')) {
+                            block.className = 'language-javascript';
+                        } else {
+                            block.className = 'language-javascript';
+                        }
                     }
-                    hljs.highlightElement(block);
-                });
-                
-                // 对行内代码应用高亮
-                const inlineCodes = messageDiv.querySelectorAll('code:not(pre code)');
-                inlineCodes.forEach(code => {
-                    if (!code.className.includes('language-')) {
-                        code.className = 'language-javascript';
-                    }
+                }
+                hljs.highlightElement(block);
+            });
+            
+            // 对行内代码应用高亮
+            const inlineCodes = messageDiv.querySelectorAll('code:not(pre code)');
+            inlineCodes.forEach(code => {
+                if (!code.className.includes('language-')) {
+                    code.className = 'language-javascript';
+                }
+                hljs.highlightElement(code);
+            });
+            
+            // 确保所有代码元素都被正确高亮
+            messageDiv.querySelectorAll('code').forEach(code => {
+                if (!code.classList.contains('hljs')) {
                     hljs.highlightElement(code);
-                });
-                
-                // 确保所有代码元素都被正确高亮
-                messageDiv.querySelectorAll('code').forEach(code => {
-                    if (!code.classList.contains('hljs')) {
-                        hljs.highlightElement(code);
-                    }
-                });
-            }, 10);
+                }
+            });
         }
 
         chatBox.appendChild(messageDiv);
         const welcome = document.querySelector('.welcome-message');
         if (welcome) welcome.remove();
         scrollToBottom();
+        return messageDiv;
     }
 
     /** 显示"加载中"动画（聊天中三点式） */
@@ -165,63 +189,56 @@ document.addEventListener('DOMContentLoaded', function () {
                                 chunkCount++; // 调试信息
                                 console.log(`Chunk ${chunkCount}:`, data.chunk.substring(0, 50) + '...'); // 调试信息
                                 
-                                // 累积内容 - 修复换行问题
-                                let currentContent = aiMessageDiv.innerHTML || '';
+                                // 累积响应文本（类似旅行规划页面的方式）
+                                let responseText = aiMessageDiv.getAttribute('data-response-text') || '';
+                                responseText += data.chunk;
+                                aiMessageDiv.setAttribute('data-response-text', responseText);
                                 
-                                // 如果是第一个chunk且内容为空，直接使用chunk内容
-                                if (chunkCount === 1 && currentContent === '') {
-                                    currentContent = data.chunk;
-                                } else {
-                                    // 检查是否需要添加空格来避免单词连接问题
-                                    const lastChar = currentContent.slice(-1);
-                                    const firstChar = data.chunk.charAt(0);
-                                    
-                                    // 更准确地检测是否在代码块中
-                                    const codeBlockMatches = currentContent.match(/```/g);
-                                    const isInCodeBlock = codeBlockMatches && codeBlockMatches.length % 2 === 1;
-                                    
-                                    // 在代码块中禁用自动空格添加，避免破坏代码格式
-                                    if (!isInCodeBlock && lastChar && firstChar && 
-                                        /[a-zA-Z0-9\u4e00-\u9fff]/.test(lastChar) && 
-                                        /[a-zA-Z0-9\u4e00-\u9fff]/.test(firstChar) &&
-                                        !/\s/.test(lastChar) && !/\s/.test(firstChar)) {
-                                        currentContent += ' ' + data.chunk;
-                                    } else {
-                                        currentContent += data.chunk;
-                                    }
-                                }
-                                
-                                // 解析markdown并应用高亮
-                                const rawHtml = marked.parse(currentContent);
+                                // 重新解析完整的Markdown内容
+                                const rawHtml = marked.parse(responseText);
                                 const cleanHtml = DOMPurify.sanitize(rawHtml);
                                 aiMessageDiv.innerHTML = cleanHtml;
                                 
-                                // 应用代码高亮
-                                setTimeout(() => {
-                                    const codeBlocks = aiMessageDiv.querySelectorAll('pre code');
-                                    codeBlocks.forEach(block => {
-                                        if (!block.className.includes('language-')) {
-                                            block.className = 'language-javascript';
+                                // 立即应用代码高亮
+                                const codeBlocks = aiMessageDiv.querySelectorAll('pre code');
+                                codeBlocks.forEach(block => {
+                                    // 检查是否已经有语言类
+                                    if (!block.className.includes('language-')) {
+                                        // 尝试从父元素或兄弟元素中获取语言信息
+                                        const preElement = block.closest('pre');
+                                        if (preElement && preElement.className.includes('language-')) {
+                                            block.className = preElement.className;
+                                        } else {
+                                            // 默认使用 javascript，但可以根据内容推断
+                                            const codeContent = block.textContent || '';
+                                            if (codeContent.includes('def ') || codeContent.includes('import ') || codeContent.includes('print(')) {
+                                                block.className = 'language-python';
+                                            } else if (codeContent.includes('function ') || codeContent.includes('const ') || codeContent.includes('let ')) {
+                                                block.className = 'language-javascript';
+                                            } else {
+                                                block.className = 'language-javascript';
+                                            }
                                         }
-                                        hljs.highlightElement(block);
-                                    });
-                                    
-                                    const inlineCodes = aiMessageDiv.querySelectorAll('code:not(pre code)');
-                                    inlineCodes.forEach(code => {
-                                        if (!code.className.includes('language-')) {
-                                            code.className = 'language-javascript';
-                                        }
-                                        hljs.highlightElement(code);
-                                    });
-                                }, 0);
+                                    }
+                                    hljs.highlightElement(block);
+                                });
+                                
+                                const inlineCodes = aiMessageDiv.querySelectorAll('code:not(pre code)');
+                                inlineCodes.forEach(code => {
+                                    if (!code.className.includes('language-')) {
+                                        code.className = 'language-javascript';
+                                    }
+                                    hljs.highlightElement(code);
+                                });
                                 
                                 scrollToBottom();
                             }
                             
                             if (data.done) {
                                 console.log('Stream completed'); // 调试信息
-                                // 流式输出完成，移除光标效果
+                                // 流式输出完成，移除光标效果和临时数据
                                 aiMessageDiv.classList.remove('streaming');
+                                aiMessageDiv.removeAttribute('data-response-text');
                                 break;
                             }
                         } catch (e) {
@@ -257,6 +274,43 @@ document.addEventListener('DOMContentLoaded', function () {
     // 发送按钮点击事件
     sendBtn.addEventListener('click', sendMessage);
 
+    /** 删除特定对话 */
+    function deleteConversation(convId, index) {
+        if (!email) return;
+
+        fetch('/delete_conversation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                email: email,
+                conversation_id: convId 
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // 从DOM中移除该对话条目
+                const historyEntries = document.querySelectorAll('.history-entry');
+                if (historyEntries[index]) {
+                    historyEntries[index].remove();
+                }
+                
+                // 如果没有更多对话，显示空状态
+                if (document.querySelectorAll('.history-entry').length === 0) {
+                    historyList.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">暂无历史记录</div>';
+                }
+                
+                console.log('对话删除成功:', convId);
+            } else {
+                alert('删除失败：' + (data.error || '未知错误'));
+            }
+        })
+        .catch(err => {
+            console.error('删除对话失败:', err);
+            alert('网络错误：' + err.message);
+        });
+    }
+
     /** 加载历史记录 */
     function loadHistory() {
         if (!email) return;
@@ -270,6 +324,8 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .then(res => res.json())
         .then(data => {
+            console.log('History data received:', data); // 调试信息
+            
             if (data.error) {
                 historyList.innerHTML = `<div style="text-align:center; color:#999; padding:20px;">${data.error}</div>`;
                 return;
@@ -281,53 +337,77 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             historyList.innerHTML = data.history.map((conv, idx) => `
-                <div class="history-entry" data-index="${idx}" style="...">
-                    <div style="font-weight:bold; margin-bottom:10px;">对话 ${idx + 1} - ${conv.date}</div>
-                    <div style="line-height:1.6; max-height:100px; overflow-y:auto; font-size:0.9rem;">
-                        ${conv.messages.slice(0, 2).map(msg => `
-                            <div style="margin-bottom:6px; padding:6px; border-radius:6px; ${msg.is_user ? 'background-color:#e3f2fd;' : 'background-color:#f1f8e9;'}">
-                                ${msg.is_user ? '你：' : '青鸾：'} ${msg.text}
-                            </div>
-                        `).join('')}
+                <div class="history-entry" data-index="${idx}" data-conv-id="${conv.id}" style="padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 10px; transition: background-color 0.2s; position: relative;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div style="font-weight:bold; cursor: pointer;">对话 ${idx + 1} - ${conv.date}</div>
+                        <button class="delete-conv-btn" style="background: #e74c3c; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;" title="删除此对话">🗑️</button>
+                    </div>
+                    <div class="conv-content" style="line-height:1.6; max-height:100px; overflow-y:auto; font-size:0.9rem; cursor: pointer;">
+                        ${conv.messages.slice(0, 2).map(msg => {
+                            const text = msg.text || msg.content || '';
+                            const isUser = msg.is_user || msg.isUser || false;
+                            return `
+                                <div style="margin-bottom:6px; padding:6px; border-radius:6px; ${isUser ? 'background-color:#e3f2fd;' : 'background-color:#f1f8e9;'}">
+                                    ${isUser ? '你：' : '青鸾：'} ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}
+                                </div>
+                            `;
+                        }).join('')}
                         ${conv.messages.length > 2 ? `<div style="color:#666; font-size:0.85rem;">+ ${conv.messages.length - 2} 条消息...</div>` : ''}
                     </div>
                 </div>
             `).join('');
 
-            document.querySelectorAll('.history-entry').forEach((el, i) => {
-                el.addEventListener('click', () => {
+            // 为删除按钮添加事件监听器
+            document.querySelectorAll('.delete-conv-btn').forEach((btn, i) => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // 阻止事件冒泡
+                    const convId = data.history[i].id;
+                    if (confirm(`确定要删除这个对话吗？此操作不可撤销。`)) {
+                        deleteConversation(convId, i);
+                    }
+                });
+            });
+
+            // 为对话内容添加点击事件监听器
+            document.querySelectorAll('.conv-content').forEach((content, i) => {
+                content.addEventListener('click', () => {
+                    console.log('History entry clicked:', i); // 调试信息
                     const selected = data.history[i];
+                    console.log('Selected conversation:', selected); // 调试信息
+                    
                     chatBox.innerHTML = '';
                     selected.messages.forEach(msg => {
-                        addMessage(msg.text, msg.is_user);
+                        console.log('Processing message:', msg); // 调试信息
+                        // 确保字段名正确
+                        const text = msg.text || msg.content || '';
+                        const isUser = msg.is_user || msg.isUser || false;
+                        addMessage(text, isUser);
                     });
                     historyModal.style.display = 'none';
                     
                     // 确保历史记录中的代码也能正确高亮
-                    setTimeout(() => {
-                        const codeBlocks = chatBox.querySelectorAll('pre code');
-                        codeBlocks.forEach(block => {
-                            if (!block.className.includes('language-')) {
-                                block.className = 'language-javascript';
-                            }
-                            hljs.highlightElement(block);
-                        });
-                        
-                        const inlineCodes = chatBox.querySelectorAll('code:not(pre code)');
-                        inlineCodes.forEach(code => {
-                            if (!code.className.includes('language-')) {
-                                code.className = 'language-javascript';
-                            }
+                    const codeBlocks = chatBox.querySelectorAll('pre code');
+                    codeBlocks.forEach(block => {
+                        if (!block.className.includes('language-')) {
+                            block.className = 'language-javascript';
+                        }
+                        hljs.highlightElement(block);
+                    });
+                    
+                    const inlineCodes = chatBox.querySelectorAll('code:not(pre code)');
+                    inlineCodes.forEach(code => {
+                        if (!code.className.includes('language-')) {
+                            code.className = 'language-javascript';
+                        }
+                        hljs.highlightElement(code);
+                    });
+                    
+                    // 确保所有代码元素都被正确高亮
+                    chatBox.querySelectorAll('code').forEach(code => {
+                        if (!code.classList.contains('hljs')) {
                             hljs.highlightElement(code);
-                        });
-                        
-                        // 确保所有代码元素都被正确高亮
-                        chatBox.querySelectorAll('code').forEach(code => {
-                            if (!code.classList.contains('hljs')) {
-                                hljs.highlightElement(code);
-                            }
-                        });
-                    }, 100);
+                        }
+                    });
                 });
             });
         })
@@ -336,303 +416,16 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    /** 初始化需求表单并渲染 */
-    function initRequirementsForm() {
+    /** 初始化聊天界面 */
+    function initChat() {
         chatBox.innerHTML = '';
 
         const welcome = document.createElement('div');
         welcome.className = 'welcome-message';
-        welcome.innerHTML = '<p>👋👋 欢迎来到青鸾向导!请先填写您的需求表格，以便我们为您提供更精准的服务</p>';
+        welcome.innerHTML = '<p>👋👋 欢迎来到青鸾向导！我是您的AI助手，有什么可以帮助您的吗？</p>';
         chatBox.appendChild(welcome);
-
-        const requirementsDiv = document.createElement('div');
-        requirementsDiv.id = 'requirements-container';
-        requirementsDiv.className = 'requirements-container';
-
-        requirementsDiv.innerHTML = `
-        <div class="requirements-header">旅行需求表</div>
-            <form id="requirements-form" class="requirements-form">
-                  <!-- 新增：出发地点 -->
-                 <!-- 出发地点 -->
-                    <div class="req-form-group">
-                        <label for="source"><i class="fas fa-map-marker-alt"></i> 出发地点</label>
-                        <input type="text" id="source" name="source" placeholder="例如：上海、广州" required>
-                    </div>
-                    
-                    <!-- 目的地 -->
-                    <div class="req-form-group">
-                        <label for="destination"><i class="fas fa-location-dot"></i> 目的地</label>
-                        <input type="text" id="destination" name="destination" placeholder="例如：北京、海南岛" required>
-                    </div>
-                    
-                    <div class="req-form-group req-full-width">
-                        <label><i class="far fa-calendar"></i> 旅行日期</label>
-                        <div class="date-group">
-                            <div class="date-input-container">
-                                <label for="start-date" style="font-weight: normal; font-size: 14px; margin-bottom: 5px;">开始日期</label>
-                                <input type="date" id="start-date" name="start_date" required>
-                            </div>
-                            <div class="date-input-container">
-                                <label for="end-date" style="font-weight: normal; font-size: 14px; margin-bottom: 5px;">结束日期</label>
-                                <input type="date" id="end-date" name="end_date" required>
-                            </div>
-                        </div>
-                        <div class="date-info">
-                            <i class="fas fa-info-circle"></i>
-                            <span id="date-range-info">默认设置为今天开始的行程</span>
-                        </div>
-                    </div>
-
-                    <div class="req-form-group">
-                        <label for="people">出行人数</label>
-                        <input
-                            type="number"
-                            id="people"
-                            name="people"
-                            placeholder="请输入旅行总人数"
-                            min="1"
-                            required
-                        >
-                    </div>
-                    <!-- 预算 -->
-                    <div class="req-form-group">
-                        <label for="budget"><i class="fas fa-wallet"></i> 预算</label>
-                        <div style="display: flex; align-items: center;">
-                            <input type="number" id="budget" name="budget" placeholder="请输入预算金额" min="1" required">
-                        </div>
-                    </div>
-                    
-                    <!-- 旅行偏好 -->
-                    <div class="req-form-group">
-                        <label for="preferences"><i class="fas fa-heart"></i> 旅行偏好</label>
-                        <select id="preferences" name="preferences" required>
-                            <option value="">请选择</option>
-                            <option value="自然风光">自然风光</option>
-                            <option value="历史文化">历史文化</option>
-                            <option value="美食体验">美食体验</option>
-                            <option value="购物娱乐">购物娱乐</option>
-                            <option value="休闲度假">休闲度假</option>
-                            <option value="探险活动">探险活动</option>
-                        </select>
-                    </div>
-                    
-                    <!-- 住宿类型偏好 -->
-                    <div class="req-form-group">
-                        <label for="accommodation_type"><i class="fas fa-bed"></i> 住宿类型偏好</label>
-                        <select id="accommodation_type" name="accommodation_type" required>
-                            <option value="">请选择</option>
-                            <option value="经济型酒店">经济型酒店</option>
-                            <option value="舒适型酒店">舒适型酒店</option>
-                            <option value="豪华酒店">豪华酒店</option>
-                            <option value="民宿">民宿</option>
-                            <option value="度假村">度假村</option>
-                        </select>
-                    </div>
-                    
-                    <!-- 交通方式偏好 -->
-                    <div class="req-form-group">
-                        <label for="transportation_mode"><i class="fas fa-car"></i> 交通方式偏好</label>
-                        <select id="transportation_mode" name="transportation_mode" required>
-                            <option value="">请选择</option>
-                            <option value="公共交通">公共交通</option>
-                            <option value="租车自驾">租车自驾</option>
-                            <option value="包车服务">包车服务</option>
-                            <option value="步行和自行车">步行和自行车</option>
-                        </select>
-                    </div>
-                    
-                    <!-- 饮食限制 -->
-                    <div class="req-form-group req-full-width">
-                        <label for="dietary_restrictions"><i class="fas fa-utensils"></i> 饮食限制</label>
-                        <input type="text" id="dietary_restrictions" name="dietary_restrictions" placeholder="例如：素食、无麸质、过敏食物等">
-                    </div>
-                
-                                <div class="req-form-group req-full-width" style="text-align: center;">
-                    <button type="submit" class="submit-btn">提交需求并开始聊天</button>
-                </div>
-            </form>
-            
-            <div class="requirements-note">
-                * 提交需求后，我们会根据您的需求生成个性化的旅行建议
-            </div>`;
-        chatBox.appendChild(requirementsDiv);
-
-        // 设置默认日期为明后两天
-        const today = new Date();
-        const startDate = new Date(today);
-        const endDate = new Date(today);
-        startDate.setDate(today.getDate() + 1);
-        endDate.setDate(today.getDate() + 2);
-
-        document.getElementById('start-date').valueAsDate = startDate;
-        document.getElementById('end-date').valueAsDate = endDate;
-
-        document.getElementById('requirements-form').addEventListener('submit', handleRequirementsSubmit);
+        
         scrollToBottom();
-    }
-
-    /** 提交需求表单逻辑 */
-    function handleRequirementsSubmit(e) {
-        e.preventDefault();
-
-        const submitBtn = document.querySelector('#requirements-form .submit-btn');
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="btn-spinner"></span> 处理中...';
-
-        const formData = {
-            source: document.getElementById('source').value,
-            destination: document.getElementById('destination').value,
-            start_date: document.getElementById('start-date').value,
-            end_date: document.getElementById('end-date').value,
-            people: document.getElementById('people').value,
-            budget: document.getElementById('budget').value,
-            preferences: document.getElementById('preferences').value,
-            accommodation_type: document.getElementById('accommodation_type').value,
-            transportation_mode: document.getElementById('transportation_mode').value,
-            dietary_restrictions: document.getElementById('dietary_restrictions').value || '无',
-            timestamp: new Date().toISOString()
-        };
-
-        const userMessage = `旅行需求：\n出发地：${formData.source}\n目的地：${formData.destination}\n出发日期：${formData.start_date}\n返回日期：${formData.end_date}\n出行人数：${formData.people}\n预算：${formData.budget}\n旅行偏好：${formData.preferences}\n住宿类型偏好：${formData.accommodation_type}\n交通方式偏好：${formData.transportation_mode}\n饮食限制：${formData.dietary_restrictions}`;
-
-        showLoading();
-
-        fetch('/send_message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                message: userMessage,
-                formData: formData
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            removeLoading();
-            
-            // 隐藏表单
-            const formContainer = document.getElementById('requirements-container');
-            if (formContainer) formContainer.style.display = 'none';
-            
-            // 创建AI消息容器
-            const aiMessageDiv = document.createElement('div');
-            aiMessageDiv.className = 'message ai-message streaming';
-            chatBox.appendChild(aiMessageDiv);
-            
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            let chunkCount = 0; // 添加chunk计数器
-            
-            return new Promise((resolve, reject) => {
-                function readStream() {
-                    reader.read().then(({ done, value }) => {
-                        if (done) {
-                            resolve();
-                            return;
-                        }
-                        
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n\n');
-                        buffer = lines.pop();
-                        
-                        for (const line of lines) {
-                            if (line.trim() === '') continue;
-                            
-                            const dataLine = line.split('\n').find(l => l.startsWith('data: '));
-                            if (dataLine) {
-                                try {
-                                    const data = JSON.parse(dataLine.slice(6));
-                                    
-                                    if (data.error) {
-                                        aiMessageDiv.innerHTML = `<div style="color: #e74c3c;">需求提交失败: ${data.error}</div>`;
-                                        reject(new Error(data.error));
-                                        return;
-                                    }
-                                    
-                                    if (data.chunk) {
-                                        chunkCount++; // 增加chunk计数
-                                        // 累积内容 - 修复换行问题
-                                        let currentContent = aiMessageDiv.innerHTML || '';
-                                        
-                                        // 如果是第一个chunk且内容为空，直接使用chunk内容
-                                        if (chunkCount === 1 && currentContent === '') {
-                                            currentContent = data.chunk;
-                                        } else {
-                                            // 检查是否需要添加空格来避免单词连接问题
-                                            const lastChar = currentContent.slice(-1);
-                                            const firstChar = data.chunk.charAt(0);
-                                            
-                                            // 更准确地检测是否在代码块中
-                                            const codeBlockMatches = currentContent.match(/```/g);
-                                            const isInCodeBlock = codeBlockMatches && codeBlockMatches.length % 2 === 1;
-                                            
-                                            // 在代码块中禁用自动空格添加，避免破坏代码格式
-                                            if (!isInCodeBlock && lastChar && firstChar && 
-                                                /[a-zA-Z0-9\u4e00-\u9fff]/.test(lastChar) && 
-                                                /[a-zA-Z0-9\u4e00-\u9fff]/.test(firstChar) &&
-                                                !/\s/.test(lastChar) && !/\s/.test(firstChar)) {
-                                                currentContent += ' ' + data.chunk;
-                                            } else {
-                                                currentContent += data.chunk;
-                                            }
-                                        }
-                                        
-                                        // 解析markdown并应用高亮
-                                        const rawHtml = marked.parse(currentContent);
-                                        const cleanHtml = DOMPurify.sanitize(rawHtml);
-                                        aiMessageDiv.innerHTML = cleanHtml;
-                                        
-                                        // 应用代码高亮
-                                        setTimeout(() => {
-                                            const codeBlocks = aiMessageDiv.querySelectorAll('pre code');
-                                            codeBlocks.forEach(block => {
-                                                if (!block.className.includes('language-')) {
-                                                    block.className = 'language-javascript';
-                                                }
-                                                hljs.highlightElement(block);
-                                            });
-                                            
-                                            const inlineCodes = aiMessageDiv.querySelectorAll('code:not(pre code)');
-                                            inlineCodes.forEach(code => {
-                                                if (!code.className.includes('language-')) {
-                                                    code.className = 'language-javascript';
-                                                }
-                                                hljs.highlightElement(code);
-                                            });
-                                        }, 0);
-                                        
-                                        scrollToBottom();
-                                    }
-                                    
-                                    if (data.done) {
-                                        aiMessageDiv.classList.remove('streaming');
-                                        resolve();
-                                        return;
-                                    }
-                                } catch (e) {
-                                    console.error('Error parsing SSE data:', e, dataLine);
-                                }
-                            }
-                        }
-                        
-                        readStream();
-                    }).catch(reject);
-                }
-                
-                readStream();
-            });
-        })
-        .catch(error => {
-            removeLoading();
-            addMessage('网络错误: ' + error.message, false);
-        })
-        .finally(() => {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '提交需求并开始聊天';
-        });
     }
 
     /** 历史记录相关事件绑定 */
@@ -677,7 +470,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    /** 新建对话：初始化表单并通知服务器 */
+    /** 新建对话：清空聊天界面并通知服务器 */
     if (newChatBtn) {
         newChatBtn.addEventListener('click', () => {
             fetch('/new_conversation', {
@@ -685,14 +478,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 headers: { 'Content-Type': 'application/json' }
             })
             .then(() => {
-                initRequirementsForm();
+                initChat();
             })
             .catch(err => console.error('Error creating new conversation:', err));
         });
     }
 
-    /** 页面初次加载显示表单 */
-    initRequirementsForm();
+    /** 页面初次加载初始化聊天界面 */
+    initChat();
     // 初始化时滚动到底
     scrollToBottom();
 });

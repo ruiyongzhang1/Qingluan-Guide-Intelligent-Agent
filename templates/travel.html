@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="{{ url_for('static', filename='icon.png') }}" type="image/png">
+    <title>青鸾向导 - 旅行规划</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='travel.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="travel-layout">
+        <!-- 左侧表单面板 -->
+        <div class="travel-form-panel">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img src="{{ url_for('static', filename='icon.png') }}" alt="青鸾向导" style="width: 40px; height: 40px; border-radius: 50%;">
+                <h2 style="margin: 10px 0; color: var(--primary-color);">智能旅行规划</h2>
+            </div>
+            
+            <form id="travelForm">
+                <!-- 基本信息 -->
+                <div class="form-section">
+                    <div class="section-title">
+                        📍 基本信息
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">出发地</label>
+                        <input type="text" class="form-control" id="source" placeholder="例：北京" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">目的地</label>
+                        <input type="text" class="form-control" id="destination" placeholder="例：东京" required>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label class="form-label">出发日期</label>
+                            <input type="date" class="form-control" id="start_date" required>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label class="form-label">返回日期</label>
+                            <input type="date" class="form-control" id="end_date" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">预算（人民币）</label>
+                        <input type="number" class="form-control" id="budget" placeholder="例：3000" min="0" required>
+                    </div>
+                </div>
+
+                <!-- 旅行偏好 -->
+                <div class="form-section">
+                    <div class="section-title">
+                        ❤️ 旅行偏好
+                    </div>
+                    <label class="form-label">选择感兴趣的活动：</label>
+                    <div class="preference-tags" id="preferences">
+                        <span class="preference-tag" data-value="文化历史">文化历史</span>
+                        <span class="preference-tag" data-value="自然风光">自然风光</span>
+                        <span class="preference-tag" data-value="美食体验">美食体验</span>
+                        <span class="preference-tag" data-value="购物娱乐">购物娱乐</span>
+                        <span class="preference-tag" data-value="冒险运动">冒险运动</span>
+                        <span class="preference-tag" data-value="休闲放松">休闲放松</span>
+                        <span class="preference-tag" data-value="摄影艺术">摄影艺术</span>
+                        <span class="preference-tag" data-value="夜生活">夜生活</span>
+                    </div>
+                </div>
+
+                <!-- 住宿偏好 -->
+                <div class="form-section">
+                    <div class="section-title">
+                        🏨 住宿偏好
+                    </div>
+                    <select class="form-control" id="accommodation_type" required>
+                        <option value="">请选择住宿类型</option>
+                        <option value="豪华酒店">豪华酒店</option>
+                        <option value="精品酒店">精品酒店</option>
+                        <option value="商务酒店">商务酒店</option>
+                        <option value="经济型酒店">经济型酒店</option>
+                        <option value="民宿/公寓">民宿/公寓</option>
+                        <option value="青年旅社">青年旅社</option>
+                    </select>
+                </div>
+
+                <!-- 交通偏好 -->
+                <div class="form-section">
+                    <div class="section-title">
+                        🚗 交通偏好
+                    </div>
+                    <label class="form-label">偏好的交通方式：</label>
+                    <div class="preference-tags" id="transportation">
+                        <span class="preference-tag" data-value="飞机">飞机</span>
+                        <span class="preference-tag" data-value="高铁">高铁</span>
+                        <span class="preference-tag" data-value="租车">租车</span>
+                        <span class="preference-tag" data-value="公共交通">公共交通</span>
+                        <span class="preference-tag" data-value="出租车/网约车">出租车/网约车</span>
+                        <span class="preference-tag" data-value="步行">步行</span>
+                    </div>
+                </div>
+
+                <!-- 饮食要求 -->
+                <div class="form-section">
+                    <div class="section-title">
+                        🍽️ 饮食要求
+                    </div>
+                    <label class="form-label">饮食限制或特殊要求：</label>
+                    <div class="preference-tags" id="dietary_restrictions">
+                        <span class="preference-tag" data-value="无特殊要求">无特殊要求</span>
+                        <span class="preference-tag" data-value="素食">素食</span>
+                        <span class="preference-tag" data-value="清真">清真</span>
+                        <span class="preference-tag" data-value="无海鲜">无海鲜</span>
+                        <span class="preference-tag" data-value="无辣">无辣</span>
+                        <span class="preference-tag" data-value="低盐">低盐</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="plan-button" id="planButton">
+                    ✨ 开始制定旅行计划
+                </button>
+            </form>
+        </div>
+
+        <!-- 右侧聊天面板 -->
+        <div class="travel-chat-panel">
+            <div class="travel-header">
+                <h2>
+                    <img src="{{ url_for('static', filename='icon.png') }}" alt="青鸾向导" style="width: 30px; height: 30px; border-radius: 50%;">
+                    AI旅行规划助手
+                </h2>
+                <div class="nav-actions">
+                    <a href="{{ url_for('chat') }}" class="nav-btn">💬 聊天助手</a>
+                    <span style="font-weight: bold; color: var(--dark-color);">{{ email }}</span>
+                    <a href="{{ url_for('logout') }}" class="nav-btn">🚪 退出</a>
+                </div>
+            </div>
+            
+            <div class="quick-actions">
+                <button class="quick-action-btn" onclick="askQuickQuestion('请详细介绍推荐的景点')">
+                    🏛️ 景点详情
+                </button>
+                <button class="quick-action-btn" onclick="askQuickQuestion('请推荐更多当地美食和餐厅')">
+                    🍜 美食推荐
+                </button>
+                <button class="quick-action-btn" onclick="askQuickQuestion('请优化我的预算分配')">
+                    💰 预算优化
+                </button>
+                <button class="quick-action-btn" onclick="askQuickQuestion('请调整行程时间安排')">
+                    ⏰ 行程调整
+                </button>
+            </div>
+            
+            <div class="chat-box" id="chat-box">
+                <div class="ai-message">
+                    <div class="message-content">
+                        <h3>🌟 欢迎使用智能旅行规划系统！</h3>
+                        <p>我是您的专业旅行规划助手，可以为您提供：</p>
+                        <ul>
+                            <li><strong>📋 完整行程规划</strong> - 详细的日程安排和路线优化</li>
+                            <li><strong>✈️ 航班住宿推荐</strong> - 最优价格和预订建议</li>
+                            <li><strong>🎯 个性化定制</strong> - 根据您的偏好量身打造</li>
+                            <li><strong>💰 预算控制</strong> - 精确的费用分解和优化建议</li>
+                            <li><strong>🔍 实时信息</strong> - 最新的价格和可用性信息</li>
+                        </ul>
+                        <p>请填写左侧表单，让我为您制定专属的旅行计划！</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <textarea id="message-input" placeholder="有什么问题可以随时询问..." rows="2" disabled></textarea>
+                    <button id="send-btn" onclick="sendMessage()" disabled>发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='travel.js') }}"></script>
+</body>
+</html>

@@ -1,105 +1,40 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, stream_template
-from ai_agent import get_agent_response_stream
+from ai_agent import get_agent_response_stream, clear_user_agents
+from database_self import db
 import os
 import json
 from dotenv import load_dotenv
 from datetime import datetime
-import uuid  # 添加uuid用于生成对话ID
-from redis import Redis  # 添加Redis导入
+
+import uuid
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
 
-# 简化用户存储（生产环境应使用数据库）
-USER_DB = 'users.json'
-HISTORY_DB = 'history.json'
-
-# 初始化数据库函数
-def init_databases():
-    if not os.path.exists(USER_DB):
-        with open(USER_DB, 'w') as f:
-            json.dump({}, f)
-    
-    if not os.path.exists(HISTORY_DB):
-        with open(HISTORY_DB, 'w') as f:
-            json.dump({}, f)
-
 # 添加用户函数
 def add_user(email, password):
-    init_databases()
-    with open(USER_DB, 'r') as f:
-        users = json.load(f)
-    
-    if email in users:
-        return False
-    
-    users[email] = {'password': password}
-    with open(USER_DB, 'w') as f:
-        json.dump(users, f)
-    return True
+    return db.add_user(email, password)
 
 # 验证用户函数
 def verify_user(email, password):
-    init_databases()
-    with open(USER_DB, 'r') as f:
-        users = json.load(f)
-    
-    if email in users and users[email]['password'] == password:
-        return True
-    return False
+    return db.verify_user(email, password)
 
 def save_conversation(email, messages, conv_id):
-    init_databases()
-    today = datetime.now().strftime('%Y-%m-%d')
-    with open(HISTORY_DB, 'r') as f:
-        history = json.load(f)
-    if email not in history:
-        history[email] = []
-    # 用传入的 conv_id
-    current_conv_id = conv_id
-    # 查找并追加消息
-    for conv in history[email]:
-        if conv['id'] == current_conv_id:
-            conv['messages'].extend(messages)
-            break
-    else:
-        # 新建对话
-        conversation = {
-            'id': current_conv_id,
-            'date': today,
-            'messages': messages
-        }
-        history[email].append(conversation)
-    with open(HISTORY_DB, 'w') as f:
-        json.dump(history, f)
+    db.save_conversation(email, messages, conv_id)
 
 # 获取历史记录函数
 def get_history(email):
-    init_databases()
-    with open(HISTORY_DB, 'r') as f:
-        history = json.load(f)
-    
-    if email not in history or not history[email]:
-        return []
-    
-    # 按日期排序，最新的在前面
-    sorted_history = sorted(history[email], key=lambda x: x['date'], reverse=True)
-    return sorted_history
+    return db.get_history(email)
 
 # 清除用户历史记录函数
 def clear_user_history(email):
-    init_databases()
-    with open(HISTORY_DB, 'r') as f:
-        history = json.load(f)
-    
-    if email in history:
-        del history[email]
-    
-    with open(HISTORY_DB, 'w') as f:
-        json.dump(history, f)
-    return True
+    success = db.clear_user_history(email)
+    if success:
+        # 清理智能体实例
+        clear_user_agents(email)
+    return success
 
 # 新建对话函数
 def new_conversation(email):
@@ -110,9 +45,8 @@ def new_conversation(email):
 # 首页路由
 @app.route('/')
 def index():
-    if 'email' in session:
-        return redirect(url_for('chat'))
-    return redirect(url_for('login'))
+    # 直接渲染首页，无需登录验证
+    return render_template('index.html')
 
 # 登录路由
 @app.route('/login', methods=['GET', 'POST'])
@@ -153,13 +87,24 @@ def chat():
         return redirect(url_for('login'))
     return render_template('chat.html', email=session['email'])
 
+# 旅行规划页面路由
+@app.route('/travel')
+def travel():
+    if 'email' not in session:
+        return redirect(url_for('login'))
+    return render_template('travel.html', email=session['email'])
+
+
 # 发送消息路由
 @app.route('/send_message', methods=['POST'])
 def send_message():
     if "email" not in session:
         return jsonify({"error": "Unauthorized"}), 401
+    
     data = request.get_json()
     user_message = data.get("message", "").strip()
+    agent_type = data.get("agent_type", "general")  # 新增智能体类型参数
+    
     if not user_message:
         return jsonify({"error": "Empty message"}), 400
 
@@ -173,35 +118,107 @@ def send_message():
             try:
                 full_response = ""
                 chunk_count = 0
-                # 获取流式响应
-                for chunk in get_agent_response_stream(user_message, email):
+                
+                # 获取流式响应，传入智能体类型
+                for chunk in get_agent_response_stream(user_message, email, agent_type):
                     if chunk:
                         chunk_count += 1
                         full_response += chunk
-                        print(f"Streaming chunk {chunk_count}: {chunk[:50]}...")  # 调试信息
+                        print(f"Streaming chunk {chunk_count}: {chunk[:50]}...")
                         yield f"data: {json.dumps({'chunk': chunk})}\n\n"
                 
-                print(f"Total chunks: {chunk_count}, Full response length: {len(full_response)}")  # 调试信息
+                print(f"Total chunks: {chunk_count}, Full response length: {len(full_response)}")
                 
-                # 保存完整的对话历史，传递 conv_id
+                # 保存完整的对话历史
                 save_conversation(email, [
-                    {"text": user_message, "is_user": True},
-                    {"text": full_response, "is_user": False},
+                    {"text": user_message, "is_user": True, "agent_type": agent_type},
+                    {"text": full_response, "is_user": False, "agent_type": agent_type},
                 ], conv_id)
+                
                 # 发送完成信号
                 yield f"data: {json.dumps({'done': True})}\n\n"
             except Exception as e:
-                print(f"Error in generate_response: {e}")  # 调试信息
+                print(f"Error in generate_response: {e}")
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
         
         response = Response(generate_response(), mimetype='text/event-stream')
-        # 添加SSE所需的headers
         response.headers['Cache-Control'] = 'no-cache'
-        response.headers['X-Accel-Buffering'] = 'no'  # 禁用Nginx缓冲
+        response.headers['X-Accel-Buffering'] = 'no'
         response.headers['Connection'] = 'keep-alive'
         return response
     except Exception as e:
-        print(f"Error in send_message: {e}")  # 调试信息
+        print(f"Error in send_message: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# 旅行规划表单处理路由
+@app.route('/plan_travel', methods=['POST'])
+def plan_travel():
+    if "email" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.get_json()
+    
+    # 构建旅行规划消息
+    travel_message = f"""
+请为我制定一个完整的旅行规划方案：
+
+【基本信息】:
+- 出发地：{data.get('source', '')}
+- 目的地：{data.get('destination', '')}
+- 旅行日期：{data.get('start_date', '')} 到 {data.get('end_date', '')}
+- 预算：${data.get('budget', 0)} 美元
+- 旅行偏好：{', '.join(data.get('preferences', []))}
+- 住宿类型偏好：{data.get('accommodation_type', '')}
+- 交通方式偏好：{', '.join(data.get('transportation_mode', []))}
+- 饮食限制：{', '.join(data.get('dietary_restrictions', []))}
+
+【请提供以下完整信息】:
+1. 目的地概况和必游景点推荐
+2. 航班搜索和预订建议（具体航班信息和价格）
+3. 住宿推荐和预订建议（具体酒店信息和价格）
+4. 详细的日程安排（按天分解，包括时间、地点、活动）
+5. 当地交通和路线规划
+6. 餐厅推荐和美食指南
+7. 详细的预算分配和费用估算
+8. 实用信息（天气、注意事项、紧急联系方式等）
+9. 备选方案和应急计划
+
+请确保所有推荐都在预算范围内，并充分考虑我的偏好和限制条件。
+"""
+
+    email = session["email"]
+    conv_id = session.get("current_conv_id") or str(uuid.uuid4())
+    session["current_conv_id"] = conv_id
+
+    try:
+        def generate_travel_response():
+            try:
+                full_response = ""
+                chunk_count = 0
+                
+                # 使用旅行智能体类型
+                for chunk in get_agent_response_stream(travel_message, email):
+                    if chunk:
+                        chunk_count += 1
+                        full_response += chunk
+                        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                
+                # 保存对话历史
+                save_conversation(email, [
+                    {"text": travel_message, "is_user": True, "agent_type": "travel"},
+                    {"text": full_response, "is_user": False, "agent_type": "travel"},
+                ], conv_id)
+                
+                yield f"data: {json.dumps({'done': True})}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        
+        response = Response(generate_travel_response(), mimetype='text/event-stream')
+        response.headers['Cache-Control'] = 'no-cache'
+        response.headers['X-Accel-Buffering'] = 'no'
+        response.headers['Connection'] = 'keep-alive'
+        return response
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 # 加载历史记录路由
@@ -216,6 +233,30 @@ def load_history():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# 删除特定对话路由
+@app.route('/delete_conversation', methods=['POST'])
+def delete_conversation():
+    if "email" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    email = session["email"]
+    conversation_id = data.get("conversation_id")
+    
+    if not conversation_id:
+        return jsonify({"error": "Missing conversation_id"}), 400
+    
+    try:
+        # 验证对话是否属于当前用户
+        success = db.delete_conversation_for_user(email, conversation_id)
+        if success:
+            return jsonify({"success": True})
+        else:
+            return jsonify({"error": "Conversation not found or access denied"}), 404
+    except Exception as e:
+        print(f"Error deleting conversation: {e}")
+        return jsonify({"error": str(e)}), 500
+
 # 清除历史记录路由
 @app.route('/clear_history', methods=['POST'])
 def clear_history():
@@ -223,16 +264,11 @@ def clear_history():
         return jsonify({"error": "Unauthorized"}), 401
 
     email = session["email"]
-    conv_id = session.get("current_conv_id")
-    # 1. 删文件历史
+    
+    # 清除历史记录和智能体
     clear_user_history(email)
-    if conv_id:
-        redis_key = f"{email}-{conv_id}"
-        # 连接 Redis 并删除
-        r = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
-        r.delete(redis_key)
-
-    # 3. 清掉当前 conv_id，让后续新对话重建
+    
+    # 清除当前对话ID
     session.pop("current_conv_id", None)
     return jsonify({"success": True})
 
@@ -251,9 +287,11 @@ def start_new_conversation():
 # 退出登录路由
 @app.route('/logout')
 def logout():
-    session.pop('email', None)
+    email = session.get('email')
+    if email:
+        clear_user_agents(email)
+    session.clear()
     return redirect(url_for('login'))
-# 需求表格
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

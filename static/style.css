@@ -544,6 +544,7 @@ header h1 {
   border: 1px solid #e1e4e8;
   border-radius: 6px;
   overflow: hidden;
+  font-size: 0.9rem;
 }
 
 .ai-message th,
@@ -552,12 +553,16 @@ header h1 {
   padding: 12px 8px;
   text-align: left;
   vertical-align: top;
+  word-wrap: break-word;
+  max-width: 200px;
 }
 
 .ai-message th {
   background-color: #f6f8fa;
   font-weight: 600;
   color: #24292e;
+  position: sticky;
+  top: 0;
 }
 
 .ai-message tr:nth-child(even) {
@@ -566,6 +571,19 @@ header h1 {
 
 .ai-message tr:hover {
   background-color: #f1f3f4;
+}
+
+/* 确保表格在小屏幕上也能正常显示 */
+@media (max-width: 768px) {
+  .ai-message table {
+    font-size: 0.8rem;
+  }
+  
+  .ai-message th,
+  .ai-message td {
+    padding: 8px 4px;
+    max-width: 120px;
+  }
 }
 
 /* 链接样式 */
@@ -612,77 +630,7 @@ body::before {
     z-index: -1;
 }
 
-.requirements-container {
-  max-width: 600px;
-  margin: 30px auto;
-  padding: 20px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-}
 
-.requirements-header {
-  text-align: center;
-  color: #4361ee;
-  font-size: 1.5rem;
-  margin-bottom: 20px;
-}
-
-.requirements-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.req-form-group label {
-  font-weight: 600;
-  margin-bottom: 6px;
-  display: block;
-  font-size: 14px;
-  color: #333;
-}
-
-.req-form-group input,
-.req-form-group select,
-.req-form-group textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 14px;
-}
-
-.req-form-group textarea {
-  height: 80px;
-  resize: vertical;
-}
-
-.req-full-width {
-  grid-column: span 2;
-}
-
-.submit-btn {
-  background-color: #4361ee;
-  color: white;
-  border: none;
-  padding: 12px 20px;
-  font-size: 15px;
-  font-weight: bold;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.submit-btn:hover {
-  background-color: #3a0ca3;
-}
-@media (max-width: 600px) {
-  .requirements-form {
-    grid-template-columns: 1fr;
-  }
-  .req-full-width {
-    grid-column: span 1;
-  }
-}
 
 .loading-container {
     display: flex;
@@ -764,4 +712,3 @@ body::before {
         transform: scale(1);
     }
 }
-
