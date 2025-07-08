@@ -216,7 +216,7 @@ function formatTravelRequest(formData) {
 - 📍 出发地：${formData.source}
 - 🎯 目的地：${formData.destination}  
 - 📅 旅行日期：${formData.start_date} 至 ${formData.end_date}
-- 💰 预算：$${formData.budget} 美元
+- 💰 预算：$${formData.budget} 人民币
 - 🏨 住宿偏好：${formData.accommodation_type}
 
 **旅行偏好：** ${formData.preferences.join(', ')}
