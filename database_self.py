@@ -58,10 +58,10 @@ class Database:
             )
         ''')
         
-        # 创建索引以提高查询性能
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_conversations_user_email ON conversations (user_email)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages (conversation_id)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages (created_at)')
+        # # 创建索引以提高查询性能
+        # cursor.execute('CREATE INDEX IF NOT EXISTS idx_conversations_user_email ON conversations (user_email)')
+        # cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages (conversation_id)')
+        # cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages (created_at)')
         
         conn.commit()
         conn.close()
@@ -210,6 +210,12 @@ class Database:
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
+            
+            #首先删除所有与会话相关的消息
+            cursor.execute(
+                'DELETE FROM messages WHERE conversation_id IN (SELECT id FROM conversations WHERE user_email = ?)',
+                (email,)
+            )
             
             # 删除用户的所有对话（消息会通过外键约束自动删除）
             cursor.execute(
