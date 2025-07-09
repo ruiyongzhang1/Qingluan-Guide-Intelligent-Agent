@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const email = document.querySelector('.user-info span')?.textContent; // 当前用户邮箱，用于加载和清空历史
 
     /** 滚动到底部 */
-    function scrollToBottom() {t
+    function scrollToBottom() {
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 

@@ -344,4 +344,173 @@ function addMessage(content, isUser) {
     chatBox.scrollTop = chatBox.scrollHeight;
     
     return messageDiv;
-} 
+}
+
+// 显示景点讲解对话框
+function showAttractionGuideDialog() {
+    const modal = document.getElementById('attractionGuideModal');
+    modal.style.display = 'flex';
+    
+    // 聚焦到输入框
+    setTimeout(() => {
+        document.getElementById('attractionInput').focus();
+    }, 100);
+}
+
+// 关闭景点讲解对话框
+function closeAttractionGuideDialog() {
+    const modal = document.getElementById('attractionGuideModal');
+    modal.style.display = 'none';
+    
+    // 清空输入框
+    document.getElementById('attractionInput').value = '';
+    document.getElementById('guideStyleSelect').selectedIndex = 0;
+}
+
+// 从对话框开始景点讲解
+function startAttractionGuideFromModal() {
+    const attractionInput = document.getElementById('attractionInput');
+    const guideStyleSelect = document.getElementById('guideStyleSelect');
+    
+    const attractionName = attractionInput.value.trim();
+    const style = guideStyleSelect.value;
+    
+    if (!attractionName) {
+        alert('请输入要了解的景点名称');
+        return;
+    }
+    
+    // 关闭对话框
+    closeAttractionGuideDialog();
+    
+    // 构建查询消息
+    const guideMessage = `请用${style}风格详细介绍${attractionName}景点，包括历史背景、文化意义、建筑特色、参观建议等信息。`;
+    
+    // 添加用户请求消息
+    addMessage(`🏛️ **景点讲解请求**\n\n**景点名称**: ${attractionName}\n**讲解风格**: ${style}\n\n正在为您生成专业的景点讲解...`, true);
+    
+    // 添加加载动画
+    const loadingMessage = addTypingIndicator();
+    
+    // 发送景点讲解请求
+    fetch('/attraction_guide', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            message: guideMessage
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('网络错误');
+        }
+        
+        // 移除加载动画
+        loadingMessage.remove();
+        
+        // 创建响应消息容器
+        const responseDiv = addMessage('', false);
+        const contentDiv = responseDiv.querySelector('.message-content');
+        
+        // 处理流式响应
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let responseText = '';
+        
+        function readStream() {
+            reader.read().then(({ done, value }) => {
+                if (done) {
+                    console.log('景点讲解完成');
+                    
+                    // 启用聊天输入
+                    const messageInput = document.getElementById('message-input');
+                    const sendBtn = document.getElementById('send-btn');
+                    messageInput.disabled = false;
+                    sendBtn.disabled = false;
+                    messageInput.placeholder = "对景点讲解有什么问题吗？可以继续提问...";
+                    return;
+                }
+                
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            if (data.chunk) {
+                                responseText += data.chunk;
+                                contentDiv.innerHTML = marked.parse(responseText);
+                                // 滚动到底部
+                                const chatBox = document.getElementById('chat-box');
+                                chatBox.scrollTop = chatBox.scrollHeight;
+                            } else if (data.done) {
+                                console.log('景点讲解流式响应完成');
+                                return;
+                            } else if (data.error) {
+                                contentDiv.innerHTML = `<div style="color: red;">❌ 讲解失败: ${data.error}</div>`;
+                                return;
+                            }
+                        } catch (e) {
+                            console.log('解析数据出错:', e);
+                        }
+                    }
+                }
+                
+                readStream();
+            });
+        }
+        
+        readStream();
+    })
+    .catch(error => {
+        console.error('景点讲解请求出错:', error);
+        loadingMessage.remove();
+        addMessage(`<div style="color: red;">❌ 景点讲解失败: ${error.message}</div>`, false);
+    });
+}
+
+// 点击对话框外部关闭对话框
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('attractionGuideModal');
+    if (event.target === modal) {
+        closeAttractionGuideDialog();
+    }
+});
+
+// 按ESC键关闭对话框
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('attractionGuideModal');
+        if (modal.style.display === 'flex') {
+            closeAttractionGuideDialog();
+        }
+    }
+});
+
+// 在景点输入框中按回车键触发讲解
+document.addEventListener('DOMContentLoaded', function() {
+    // ...existing code...
+    
+    // 为景点输入框添加回车键监听
+    const attractionInput = document.getElementById('attractionInput');
+    if (attractionInput) {
+        attractionInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                startAttractionGuideFromModal();
+            }
+        });
+    }
+});
+
+// 在旅行规划完成后启用聊天功能
+function enableChatAfterPlanning() {
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    
+    messageInput.disabled = false;
+    sendBtn.disabled = false;
+    messageInput.placeholder = "有什么问题可以随时询问...";
+}

@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, stream_template
 from ai_agent import get_agent_response_stream, clear_user_agents
+from attraction_guide import get_attraction_guide_response_stream, clear_tour_guide_agents
 from database_self import db
 import os
 import json
@@ -150,6 +151,60 @@ def send_message():
         print(f"Error in send_message: {e}")
         return jsonify({"error": str(e)}), 500
 
+# 景点讲解路由
+@app.route('/attraction_guide', methods=['POST'])
+def attraction_guide():
+    if "email" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.get_json()
+    user_message = data.get("message", "").strip()
+    
+    if not user_message:
+        return jsonify({"error": "Empty message"}), 400
+
+    email = session["email"]
+    conv_id = session.get("current_conv_id") or str(uuid.uuid4())
+    session["current_conv_id"] = conv_id
+
+    try:
+        # 使用流式响应
+        def generate_attraction_response():
+            try:
+                full_response = ""
+                chunk_count = 0
+                
+                # 获取流式响应
+                for chunk in get_attraction_guide_response_stream(user_message, email):
+                    if chunk:
+                        chunk_count += 1
+                        full_response += chunk
+                        print(f"Streaming chunk {chunk_count}: {chunk[:50]}...")
+                        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                
+                print(f"Total chunks: {chunk_count}, Full response length: {len(full_response)}")
+                
+                # 保存完整的对话历史
+                save_conversation(email, [
+                    {"text": user_message, "is_user": True, "agent_type": "attraction_guide"},
+                    {"text": full_response, "is_user": False, "agent_type": "attraction_guide"},
+                ], conv_id)
+                
+                # 发送完成信号
+                yield f"data: {json.dumps({'done': True})}\n\n"
+            except Exception as e:
+                print(f"Error in generate_attraction_response: {e}")
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        
+        response = Response(generate_attraction_response(), mimetype='text/event-stream')
+        response.headers['Cache-Control'] = 'no-cache'
+        response.headers['X-Accel-Buffering'] = 'no'
+        response.headers['Connection'] = 'keep-alive'
+        return response
+    except Exception as e:
+        print(f"Error in attraction_guide: {e}")
+        return jsonify({"error": str(e)}), 500
+
 # 旅行规划表单处理路由
 @app.route('/plan_travel', methods=['POST'])
 def plan_travel():
@@ -290,6 +345,7 @@ def logout():
     email = session.get('email')
     if email:
         clear_user_agents(email)
+        clear_tour_guide_agents(email)  # 清除景点讲解智能体
     session.clear()
     return redirect(url_for('login'))
 

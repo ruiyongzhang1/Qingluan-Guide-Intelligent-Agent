@@ -247,6 +247,17 @@ body {
 .nav-actions {
     display: flex;
     gap: 12px;
+    align-items: center;
+}
+
+.user-email {
+    font-weight: 600;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.4;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
 }
 
 .nav-btn {
@@ -451,11 +462,402 @@ body {
     transform: none;
 }
 
-@media (max-width: 768px) {
+/* 景点讲解功能样式 */
+.form-section {
+    margin-bottom: 25px;
+    padding: 20px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+.form-section:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-label {
+    display: block;
+    font-weight: 500;
+    color: #475569;
+    margin-bottom: 6px;
+    font-size: 14px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: white;
+    box-sizing: border-box;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.plan-button {
+    width: 100%;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #4f46e5 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+    margin-top: 10px;
+}
+
+.plan-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+}
+
+.plan-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.plan-button.loading {
+    position: relative;
+    overflow: hidden;
+}
+
+.plan-button.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: loading-shimmer 1.5s infinite;
+}
+
+@keyframes loading-shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+/* 景点讲解特殊样式 */
+#attraction_input {
+    border-color: #10b981;
+}
+
+#attraction_input:focus {
+    border-color: #059669;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+#guideButton {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+}
+
+#guideButton:hover:not(:disabled) {
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+}
+
+/* 讲解风格选择器样式 */
+#guide_style {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 8px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+    padding-right: 40px;
+    appearance: none;
+    cursor: pointer;
+}
+
+/* 景点讲解对话框样式 */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 16px;
+    padding: 0;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #4f46e5 100%);
+    color: white;
+    padding: 20px 25px;
+    border-radius: 16px 16px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.close {
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    color: white;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.close:hover {
+    opacity: 1;
+}
+
+.modal-body {
+    padding: 25px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 25px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #4f46e5 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+}
+
+.btn-secondary {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background: #e2e8f0;
+    transform: translateY(-1px);
+}
+
+/* 景点讲解按钮特殊样式 */
+.quick-action-btn:last-child {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+}
+
+.quick-action-btn:last-child:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+}
+
+/* 景点讲解内容样式优化 */
+.ai-message .message-content h1 {
+    color: #1e40af;
+    border-bottom: 3px solid #3b82f6;
+    padding-bottom: 8px;
+    margin-top: 20px;
+    margin-bottom: 15px;
+}
+
+.ai-message .message-content h2 {
+    color: #1f2937;
+    margin-top: 20px;
+    margin-bottom: 12px;
+    padding-left: 10px;
+    border-left: 4px solid #10b981;
+    background: linear-gradient(to right, #f0fdf4, transparent);
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.ai-message .message-content h3 {
+    color: #374151;
+    margin-top: 15px;
+    margin-bottom: 10px;
+}
+
+.ai-message .message-content ul {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.ai-message .message-content li {
+    margin-bottom: 8px;
+    line-height: 1.6;
+    position: relative;
+}
+
+.ai-message .message-content li::marker {
+    color: #10b981;
+    font-weight: bold;
+}
+
+.ai-message .message-content strong {
+    color: #1f2937;
+    background: rgba(59, 130, 246, 0.1);
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.ai-message .message-content p {
+    line-height: 1.7;
+    margin-bottom: 12px;
+    text-align: justify;
+}
+
+.ai-message .message-content blockquote {
+    border-left: 4px solid #fbbf24;
+    background: #fffbeb;
+    padding: 12px 16px;
+    margin: 15px 0;
+    border-radius: 0 8px 8px 0;
+    color: #92400e;
+}
+
+/* 实用信息特殊样式 */
+.ai-message .message-content h2:contains("实用信息"),
+.ai-message .message-content h2[id*="实用信息"] {
+    background: linear-gradient(to right, #fef3c7, transparent);
+    border-left-color: #f59e0b;
+}
+
+/* 注意事项特殊样式 */
+.ai-message .message-content h2:contains("注意事项"),
+.ai-message .message-content h2[id*="注意事项"] {
+    background: linear-gradient(to right, #fee2e2, transparent);
+    border-left-color: #ef4444;
+}
+
+/* 核心亮点特殊样式 */
+.ai-message .message-content h2:contains("核心亮点"),
+.ai-message .message-content h2[id*="核心亮点"] {
+    background: linear-gradient(to right, #f3e8ff, transparent);
+    border-left-color: #8b5cf6;
+}
+
+/* 分隔线样式 */
+.ai-message .message-content hr {
+    border: none;
+    height: 2px;
+    background: linear-gradient(to right, transparent, #e5e7eb, transparent);
+    margin: 25px 0;
+}
+
+/* 表格样式（如果有的话）*/
+.ai-message .message-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.ai-message .message-content th,
+.ai-message .message-content td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.ai-message .message-content th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+}
+
+/* 代码块样式 */
+.ai-message .message-content code {
+    background: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.9em;
+    color: #1f2937;
+}
+
+.ai-message .message-content pre {
+    background: #1f2937;
+    color: #f9fafb;
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 15px 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
     .travel-layout {
         flex-direction: column;
-        padding: 15px;
-        gap: 20px;
+        height: auto;
+        padding: 20px;
     }
     
     .travel-form-panel {
@@ -463,7 +865,41 @@ body {
         max-height: none;
     }
     
-    .user-message {
-        margin-left: 10%;
+    .travel-chat-panel {
+        min-height: 500px;
     }
-} 
+}
+
+@media (max-width: 768px) {
+    .travel-layout {
+        padding: 15px;
+        gap: 20px;
+    }
+    
+    .travel-form-panel,
+    .travel-chat-panel {
+        padding: 20px;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 20px;
+    }
+    
+    .modal-header {
+        padding: 15px 20px;
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+    }
+    
+    .btn-primary,
+    .btn-secondary {
+        width: 100%;
+    }
+}

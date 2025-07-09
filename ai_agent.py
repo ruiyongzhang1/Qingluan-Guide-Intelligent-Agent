@@ -194,18 +194,18 @@ class MultiAgentTravelPlanner:
         self.search_tool = TravelSearchTool()
         load_dotenv()
         
-        # 获取API配置
+        # 获取API配置 - 使用OpenAI API
         self.api_key = os.getenv("OPENAI_API_KEY")
         self.base_url = os.getenv("OPENAI_API_URL")
         
         if not self.api_key:
             raise ValueError("未配置OpenAI API密钥")
         
-        # 创建LLM实例
+        # 创建LLM实例 - 使用OpenAI的gpt-4.1-nano模型
         self.llm = ChatOpenAI(
             temperature=0.1,
             api_key=SecretStr(self.api_key),
-            model="gpt-4",
+            model="gpt-4.1-nano",  # 使用gpt-4.1-nano模型
             base_url=self.base_url,
             streaming=True
         )
@@ -315,7 +315,7 @@ def get_agent_response_stream(user_message, user_email, agent_type="general"):
     base_url = os.getenv("OPENAI_API_URL")
     
     if not api_key:
-        raise ValueError("DeepSeek API key not configured")
+        raise ValueError("OpenAI API key not configured")
     
     # 选择系统提示
     if agent_type == "travel":
@@ -328,7 +328,7 @@ def get_agent_response_stream(user_message, user_email, agent_type="general"):
         llm = ChatOpenAI(
             temperature=0,
             api_key=SecretStr(api_key),
-            model="gpt-4.1-nano",
+            model="gpt-4.1-nano",  # 使用gpt-4.1-nano模型
             base_url=base_url,
             streaming=True
         )

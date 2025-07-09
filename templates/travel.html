@@ -129,7 +129,7 @@
                 </h2>
                 <div class="nav-actions">
                     <a href="{{ url_for('chat') }}" class="nav-btn">💬 聊天助手</a>
-                    <span style="font-weight: bold; color: var(--dark-color);">{{ email }}</span>
+                    <span class="user-email">{{ email }}</span>
                     <a href="{{ url_for('logout') }}" class="nav-btn">🚪 退出</a>
                 </div>
             </div>
@@ -146,6 +146,9 @@
                 </button>
                 <button class="quick-action-btn" onclick="askQuickQuestion('请调整行程时间安排')">
                     ⏰ 行程调整
+                </button>
+                <button class="quick-action-btn" onclick="showAttractionGuideDialog()">
+                    🎯 景点讲解
                 </button>
             </div>
             
@@ -170,6 +173,36 @@
                 <div class="input-wrapper">
                     <textarea id="message-input" placeholder="有什么问题可以随时询问..." rows="2" disabled></textarea>
                     <button id="send-btn" onclick="sendMessage()" disabled>发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 景点讲解对话框 -->
+    <div id="attractionGuideModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🏛️ 景点讲解助手</h3>
+                <span class="close" onclick="closeAttractionGuideDialog()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">🎯 请输入您想了解的景点名称：</label>
+                    <input type="text" class="form-control" id="attractionInput" placeholder="例：故宫、西湖、天安门、长城等">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">🎨 选择讲解风格：</label>
+                    <select class="form-control" id="guideStyleSelect">
+                        <option value="学术型">📚 学术型（严谨专业，考古专家视角）</option>
+                        <option value="故事型">📖 故事型（生动有趣，说书人风格）</option>
+                        <option value="亲子型">👶 亲子型（简单易懂，适合儿童）</option>
+                        <option value="网红风格">📸 网红风格（时尚有趣，拍照攻略）</option>
+                        <option value="幽默诙谐">😄 幽默诙谐（轻松搞笑，网络用语）</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeAttractionGuideDialog()">取消</button>
+                    <button class="btn-primary" onclick="startAttractionGuideFromModal()">开始讲解</button>
                 </div>
             </div>
         </div>
