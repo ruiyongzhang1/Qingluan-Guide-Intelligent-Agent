@@ -1,23 +1,34 @@
+import warnings
+# 抑制LangChain弃用警告
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain")
+warnings.filterwarnings("ignore", message=".*LangChain agents will continue to be supported.*", category=DeprecationWarning)
+
 from langchain_openai import ChatOpenAI
 from langchain.agents import initialize_agent, AgentType
 from langchain.memory import ConversationBufferMemory
-from langchain.callbacks.base import BaseCallbackHandler
-from langchain.schema import HumanMessage, AIMessage, SystemMessage
+from langchain.schema import HumanMessage, AIMessage, SystemMessage, BaseMessage
 from langchain.tools import Tool
-from langchain_community.utilities import SerpAPIWrapper
 from dotenv import load_dotenv
 import os
 from pydantic import SecretStr
-import json
-import asyncio
-from typing import Dict, List, Any, Optional
+from typing import List
 import requests
+import tempfile
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.colors import HexColor
+import markdown
+from datetime import datetime
+import pdfkit
 
 # 存储每个用户的智能体实例
+# 注意：当前使用LangChain agents，已被弃用
+# 未来建议迁移到LangGraph以获得更好的功能和性能
 user_agents = {}
 
 # 通用系统提示，强制使用 Markdown 格式
-GENERAL_SYSTEM_PROMPT = """你是一个专业的AI助手，请始终使用Markdown格式回复。
+GENERAL_SYSTEM_PROMPT = """你是一个专业的AI助手，在回复旅游相关问题时请始终使用Markdown格式回复。
 
 回复要求：
 1. 使用Markdown语法格式化所有内容
@@ -130,6 +141,124 @@ ITINERARY_PLANNER_PROMPT = """你是一个专业的旅行行程规划专家。�
 使用Markdown格式，确保内容清晰、易读、可执行。
 """
 
+# PDF生成智能体提示词
+PDF_PROMPT = """你是一个专业的旅行攻略PDF生成专家。你的任务是基于对话历史生成完整、实用的旅行攻略PDF报告。
+
+## 核心能力：
+
+### 📊 信息整合
+- 从对话历史中提取所有关键旅行信息
+- 整理用户需求、偏好、预算等核心要素
+- 汇总所有推荐的景点、餐厅、住宿等信息
+
+### 📋 报告结构化
+- 按照专业旅行攻略的标准格式组织内容
+- 确保信息层次清晰、易于查找
+- 提供完整的行动指南和实用信息
+
+### 🎯 实用性优化
+- 确保所有信息都是具体可执行的
+- 提供详细的联系方式和预订信息
+- 包含预算控制和费用估算
+
+## 输出标准：
+
+### 必须包含的章节：
+1. **旅行概览** - 目的地、时间、预算、人数等基本信息
+2. **详细行程** - 按天分解的完整行程安排，包含时间、地点、活动
+3. **交通安排** - 航班信息、住宿详情、当地交通方案
+4. **景点推荐** - 必游景点、门票价格、开放时间、游览建议
+5. **餐饮指南** - 特色餐厅、美食推荐、用餐预算、预订建议
+6. **预算明细** - 详细费用分解、总预算控制、节省建议
+7. **实用信息** - 天气、注意事项、紧急联系方式、当地习俗
+8. **备选方案** - 应急计划、备用选择、灵活调整建议
+
+### 格式要求：
+- 使用Markdown语法，确保结构清晰
+- 使用标题、列表、表格等元素组织内容
+- 突出重要信息和关键数据
+- 保持专业性和可读性
+
+请确保生成的旅行攻略PDF报告内容完整、结构清晰、实用性强。
+"""
+
+class PDFGeneratorTool:
+    """PDF生成工具类"""
+
+    def __init__(self):
+        pass
+
+    def generate_travel_pdf(self, conversation_data: str, summary: str = "", user_info: str = "") -> str:
+        """用 wkhtmltopdf 生成旅行规划PDF，支持表格和代码块，并返回下载链接"""
+        try:
+            # 创建保存目录
+            save_dir = r"C:\new_py\QL_guide\static\pdfs"
+            os.makedirs(save_dir, exist_ok=True)
+
+            # 生成文件名
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            pdf_filename = f"{user_info}_旅行规划_{timestamp}.pdf" if user_info else f"旅行规划_{timestamp}.pdf"
+            pdf_path = os.path.join(save_dir, pdf_filename)
+
+            # 构建HTML内容
+            html_content = f"""
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                body {{ font-family: 'Microsoft YaHei', 'SimSun', 'Arial', sans-serif; }}
+                h1, h2, h3 {{ color: #4CAF50; }}
+                table {{
+                    border-collapse: collapse;
+                    width: 100%;
+                    margin: 10px 0;
+                    table-layout: fixed;
+                    word-break: break-all;
+                }}
+                th, td {{
+                    border: 1px solid #333;
+                    padding: 8px 6px;
+                    font-size: 15px;
+                    text-align: center;
+                    vertical-align: middle;
+                    word-break: break-all;
+                }}
+                th {{
+                    background: #f2f2f2;
+                    font-weight: bold;
+                }}
+                pre {{ background: #f5f5f5; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; }}
+                code {{ background: #eee; padding: 2px 4px; border-radius: 2px; }}
+            </style>
+            </head>
+            <body>
+                <h1>智能旅行规划报告</h1>
+                <p>生成时间: {datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')}</p>
+                <h2>AI总结报告</h2>
+                {markdown.markdown(summary, extensions=['tables', 'fenced_code', 'codehilite']) if summary else ''}
+                <h2>完整对话记录</h2>
+                {markdown.markdown(conversation_data, extensions=['tables', 'fenced_code', 'codehilite'])}
+                <hr>
+                <p style="color:#888;">本报告由青鸾向导AI旅行规划系统生成</p>
+            </body>
+            </html>
+            """
+
+            # 指定wkhtmltopdf.exe的路径，请确保这个路径是正确的
+            config = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
+            
+            # 从字符串生成PDF
+            pdfkit.from_string(html_content, pdf_path, configuration=config, options={"enable-local-file-access": ""})
+
+            # 返回下载链接
+            download_link = f"/static/pdfs/{pdf_filename}"
+            return f"PDF已成功生成，您可以通过以下链接下载: <a href='{download_link}' target='_blank'>下载PDF</a>"
+
+        except FileNotFoundError:
+            return "PDF生成失败: 未找到 wkhtmltopdf.exe。请检查路径 `C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe` 是否正确，或将其添加到系统环境变量 PATH 中。"
+        except Exception as e:
+            return f"PDF生成失败: {str(e)}"
+
 # 搜索工具类
 class TravelSearchTool:
     """旅行搜索工具类"""
@@ -205,10 +334,13 @@ class MultiAgentTravelPlanner:
         self.llm = ChatOpenAI(
             temperature=0.1,
             api_key=SecretStr(self.api_key),
-            model="gpt-4",
+            model="gpt-4.1-nano",
             base_url=self.base_url,
             streaming=True
         )
+        
+        # 创建PDF生成工具
+        self.pdf_tool = PDFGeneratorTool()
         
         # 创建搜索工具
         self.tools = [
@@ -236,6 +368,14 @@ class MultiAgentTravelPlanner:
                 name="restaurant_search",
                 description="搜索餐厅和美食信息",
                 func=self.search_tool.search_restaurants
+            ),
+        ]
+        #pdf生成工具
+        self.tools_pdf=[
+            Tool(
+                name="pdf_generator",
+                description="生成旅行规划PDF报告，输入对话内容和总结",
+                func=self.pdf_tool.generate_travel_pdf
             )
         ]
         
@@ -246,26 +386,52 @@ class MultiAgentTravelPlanner:
         )
         
         # 创建信息收集智能体
+        # 注意：LangChain agents已被弃用，建议未来迁移到LangGraph
         self.collector_agent = initialize_agent(
             tools=self.tools,
             llm=self.llm,
             agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
             memory=self.memory,
-            verbose=False
+            verbose=False,
+            handle_parsing_errors=True,
+            agent_kwargs={
+                "system_message": INFORMATION_COLLECTOR_PROMPT
+            }
         )
         
-        # 创建行程规划智能体（不需要搜索工具）
+        # 创建行程规划智能体（使用相同的工具集）
+        # 注意：LangChain agents已被弃用，建议未来迁移到LangGraph
         self.planner_agent = initialize_agent(
-            tools=[],
+            tools=self.tools,
             llm=self.llm,
             agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-            verbose=False
+            verbose=False,
+            handle_parsing_errors=True,
+            agent_kwargs={
+                "system_message": ITINERARY_PLANNER_PROMPT
+            }
+        )
+        #pdf生成智能体
+        # 注意：LangChain agents已被弃用，建议未来迁移到LangGraph
+        self.pdf_agent = initialize_agent(
+            tools=self.tools_pdf,
+            llm=self.llm,
+            agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+            verbose=False,
+            handle_parsing_errors=True,
+            agent_kwargs={
+                "system_message": PDF_PROMPT
+            }
         )
     
-    def collect_travel_information_stream(self, travel_request: str):
+    def collect_travel_information_stream(self, travel_request: str, messages: list[BaseMessage]):
         """流式收集旅行信息"""
-        collection_prompt = f"""
+        # 构建完整的提示词
+        full_prompt = f"""
 {INFORMATION_COLLECTOR_PROMPT}
+
+历史对话记忆：
+{self._format_messages_for_prompt(messages)}
 
 用户旅行需求：
 {travel_request}
@@ -281,14 +447,25 @@ class MultiAgentTravelPlanner:
 请使用搜索工具获取最新、准确的信息，并以Markdown格式整理输出。
 """
         
-        # 流式运行信息收集
-        for chunk in self.llm.stream([SystemMessage(content=collection_prompt)]):
-            if hasattr(chunk, 'content') and chunk.content:
-                yield chunk.content
+        # 使用智能体流式调用
+        try:
+            for chunk in self.collector_agent.stream({"input": full_prompt}):
+                if "output" in chunk and chunk["output"]:
+                    yield chunk["output"]
+                elif "content" in chunk and chunk["content"]:
+                    yield chunk["content"]
+        except Exception as e:
+            # 如果智能体调用失败，回退到直接LLM调用
+            yield f"\n\n⚠️ 信息收集智能体调用失败，使用备用方案...\n\n"
+            collect_prompt = f"""{INFORMATION_COLLECTOR_PROMPT}\n{full_prompt}"""
+            for chunk in self.llm.stream([SystemMessage(content=collect_prompt)]):
+                if hasattr(chunk, 'content') and chunk.content:
+                    yield chunk.content
     
     def create_detailed_itinerary_stream(self, travel_request: str, collected_info: str):
         """流式创建详细行程"""
-        planning_prompt = f"""
+        # 构建完整的提示词
+        full_prompt = f"""
 {ITINERARY_PLANNER_PROMPT}
 
 用户旅行需求：
@@ -297,34 +474,63 @@ class MultiAgentTravelPlanner:
 收集到的信息：
 {collected_info}
 
-请基于以上信息制定详细的旅行方案，确保方案实用、可执行，并严格控制在用户预算范围内。
+请基于以上信息制定详细的旅行方案，确保方案实用、可执行，并严格控制在用户预算范围内，以Markdown格式整理输出。
 """
         
-        # 流式运行行程规划
-        for chunk in self.llm.stream([SystemMessage(content=planning_prompt)]):
-            if hasattr(chunk, 'content') and chunk.content:
-                yield chunk.content
+        # 使用智能体流式调用
+        try:
+            for chunk in self.planner_agent.stream({"input": full_prompt}):
+                if "output" in chunk and chunk["output"]:
+                    yield chunk["output"]
+                elif "content" in chunk and chunk["content"]:
+                    yield chunk["content"]
+        except Exception as e:
+            # 如果智能体调用失败，回退到直接LLM调用
+            yield f"\n\n⚠️ 行程规划智能体调用失败，使用备用方案...\n\n"
+            planning_prompt = f"""{ITINERARY_PLANNER_PROMPT}\n{full_prompt}"""
+
+            for chunk in self.llm.stream([SystemMessage(content=planning_prompt)]):
+                if hasattr(chunk, 'content') and chunk.content:
+                    yield chunk.content
+    
+    def _format_messages_for_prompt(self, messages: list[BaseMessage]) -> str:
+        """格式化消息列表为提示词"""
+        formatted_messages = []
+        for msg in messages:
+            if isinstance(msg, HumanMessage):
+                formatted_messages.append(f"用户: {msg.content}")
+            elif isinstance(msg, AIMessage):
+                formatted_messages.append(f"助手: {msg.content}")
+            elif isinstance(msg, SystemMessage):
+                formatted_messages.append(f"系统: {msg.content}")
+        
+        return "\n".join(formatted_messages)
 
 # 智能体类型枚举
 # 使用 langchain.agents.AgentType，避免自定义覆盖
 
-def get_agent_response_stream(user_message, user_email, agent_type="general"):
+def get_agent_response_stream(user_message, user_email, agent_type="general", conv_id=None):
     """获取智能体响应流"""
     load_dotenv()
     api_key = os.getenv("OPENAI_API_KEY")
     base_url = os.getenv("OPENAI_API_URL")
     
     if not api_key:
-        raise ValueError("DeepSeek API key not configured")
+        raise ValueError("OPENAI API key not configured")
     
     # 选择系统提示
     if agent_type == "travel":
         system_prompt = TRAVEL_SYSTEM_PROMPT
+    elif agent_type == "pdf_generator":
+        system_prompt = PDF_PROMPT
     else:
         system_prompt = GENERAL_SYSTEM_PROMPT
     
+    # 生成智能体标识（包含用户、类型和对话ID）
+    agent_key = f"{user_email}_{agent_type}_{conv_id}" if conv_id else f"{user_email}_{agent_type}"
+    
     # 为每个用户创建独立的LLM实例
-    if f"{user_email}_{agent_type}" not in user_agents:
+    if agent_key not in user_agents:
         llm = ChatOpenAI(
             temperature=0,
             api_key=SecretStr(api_key),
@@ -338,13 +544,14 @@ def get_agent_response_stream(user_message, user_email, agent_type="general"):
             return_messages=True
         )
         
-        user_agents[f"{user_email}_{agent_type}"] = {
+        user_agents[agent_key] = {
             'llm': llm,
             'memory': memory,
-            'agent_type': agent_type
+            'agent_type': agent_type,
+            'conv_id': conv_id
         }
     
-    user_agent = user_agents[f"{user_email}_{agent_type}"]
+    user_agent = user_agents[agent_key]
     llm = user_agent['llm']
     memory = user_agent['memory']
     
@@ -353,11 +560,10 @@ def get_agent_response_stream(user_message, user_email, agent_type="general"):
         chat_history = memory.chat_memory.messages
         
         # 构建消息列表
-        from langchain.schema import BaseMessage
         messages: list[BaseMessage] = [SystemMessage(content=system_prompt)]
         
         # 添加历史对话（限制长度）
-        for msg in chat_history[-10:]:
+        for msg in chat_history[-30:]:
             if isinstance(msg, HumanMessage):
                 messages.append(HumanMessage(content=msg.content))
             elif isinstance(msg, AIMessage):
@@ -366,9 +572,14 @@ def get_agent_response_stream(user_message, user_email, agent_type="general"):
         # 添加当前用户消息
         messages.append(HumanMessage(content=user_message))
         
-        # 如果是旅行规划请求，使用多智能体系统
-        if agent_type == "travel" and is_travel_planning_request(user_message):
-            yield from handle_travel_planning_stream(user_message, user_email)
+        # 根据智能体类型处理
+        if agent_type == "travel":
+            yield from handle_travel_planning_stream(user_message, user_email, messages, conv_id)
+            return
+        elif agent_type == "pdf_generator":
+            # 对于PDF生成，直接返回生成的内容（非流式）
+            pdf_content = generate_pdf_content(user_message, user_email, messages, conv_id)
+            yield pdf_content
             return
         
         # 普通流式响应
@@ -411,8 +622,8 @@ def get_agent_response_stream(user_message, user_email, agent_type="general"):
                     
     except Exception as e:
         # 清理无效的智能体实例
-        if f"{user_email}_{agent_type}" in user_agents:
-            del user_agents[f"{user_email}_{agent_type}"]
+        if agent_key in user_agents:
+            del user_agents[agent_key]
         raise e
 
 def is_travel_planning_request(message: str) -> bool:
@@ -427,42 +638,140 @@ def is_travel_planning_request(message: str) -> bool:
     message_lower = message.lower()
     return any(keyword in message_lower for keyword in travel_keywords)
 
-def handle_travel_planning_stream(travel_request: str, user_email: str):
-    """处理旅行规划请求的流式响应"""
+def handle_travel_planning_stream(travel_request: str, user_email: str, messages: list[BaseMessage], conv_id=None):
+    """处理旅行相关请求的流式响应"""
     try:
         planner = MultiAgentTravelPlanner(user_email)
         
-        # 阶段1：信息收集
-        yield "\n\n## 🔍 正在收集旅行信息...\n\n"
+        # 初始化完整响应变量
+        full_response = ""
         
-        collected_info = ""
-        for chunk in planner.collect_travel_information_stream(travel_request):
-            yield chunk
-            if isinstance(chunk, str):
-                collected_info += chunk
-            else:
-                collected_info += str(chunk)
+        # 判断是否为完整的旅行规划请求
+        if is_travel_planning_request(travel_request):
+            # 完整的旅行规划请求 - 使用两阶段处理
+            yield "\n\n## 🔍 正在收集旅行信息...\n\n"
+            
+            collected_info = ""
+            for chunk in planner.collect_travel_information_stream(travel_request, messages):
+                yield chunk
+                if isinstance(chunk, str):
+                    collected_info += chunk
+                    full_response += chunk
+                else:
+                    collected_info += str(chunk)
+                    full_response += str(chunk)
+            
+            # 阶段2：行程规划
+            yield "\n\n---\n\n## 📋 正在制定详细行程...\n\n"
+            
+            for chunk in planner.create_detailed_itinerary_stream(travel_request, collected_info):
+                yield chunk
+                if isinstance(chunk, str):
+                    full_response += chunk
+                else:
+                    full_response += str(chunk)
+        else:
+            # 一般的旅行问题 - 直接调用LLM
+            for chunk in planner.llm.stream([SystemMessage(content=TRAVEL_SYSTEM_PROMPT), HumanMessage(content=travel_request)]):
+                if hasattr(chunk, 'content') and chunk.content:
+                    yield chunk.content
+                    full_response += str(chunk.content)
         
-        # 阶段2：行程规划
-        yield "\n\n---\n\n## 📋 正在制定详细行程...\n\n"
-        
-        for chunk in planner.create_detailed_itinerary_stream(travel_request, collected_info):
-            yield chunk
+        # 保存到记忆
+        agent_key = f"{user_email}_travel_{conv_id}" if conv_id else f"{user_email}_travel"
+        if agent_key in user_agents:
+            memory = user_agents[agent_key]['memory']
+            memory.chat_memory.add_user_message(travel_request)
+            memory.chat_memory.add_ai_message(full_response)
             
     except Exception as e:
         yield f"\n\n❌ 旅行规划过程中出现错误: {str(e)}\n\n"
 
+"""
+此函数已被generate_pdf_content取代，保留此注释以便于代码维护
+"""
+
+def generate_pdf_content(user_message: str, user_email: str, messages: list[BaseMessage], conv_id=None):
+    """生成PDF内容（非流式）"""
+    try:
+        # 创建PDF智能体实例
+        planner = MultiAgentTravelPlanner(user_email)
+        
+        # 从历史消息中提取对话内容，过滤掉系统消息
+        conversation_content = ""
+        for msg in messages:
+            if isinstance(msg, HumanMessage):
+                conversation_content += f"用户: {msg.content}\n\n"
+            elif isinstance(msg, AIMessage):
+                conversation_content += f"助手: {msg.content}\n\n"
+        
+        # 如果对话内容为空，提供默认提示
+        if not conversation_content.strip():
+            conversation_content = "暂无对话历史，请先进行旅行规划对话。"
+        
+        try:
+            # 生成摘要
+            summary_prompt = f"""
+请为以下旅行对话生成一个简洁的摘要，突出关键的旅行信息（目的地、时间、预算、人数等）。
+这个摘要将用于PDF报告的开头部分。请保持在300字以内，使用Markdown格式。
+
+对话内容：
+{conversation_content}
+
+用户需求：
+{user_message}
+
+一定要使用Markdown格式输出摘要，确保内容清晰易读,表格要让pdfkit能够渲染。
+"""
+            summary_response = planner.llm.invoke([SystemMessage(content=summary_prompt)])
+            summary = summary_response.content
+            # 确保 summary 是字符串类型
+            if not isinstance(summary, str):
+                summary = str(summary)
+                
+            # 提取目的地信息（如果有）
+            destination = "旅行"
+            import re
+            destination_match = re.search(r'(前往|去|到|游览|旅行)[到至]?([\u4e00-\u9fa5a-zA-Z]+)', conversation_content)
+            if destination_match:
+                destination = destination_match.group(2)
+            
+            # 调用PDF生成工具，传递用户邮箱和目的地信息
+            user_info = f"{user_email}_{destination}"
+            pdf_result = planner.pdf_tool.generate_travel_pdf(conversation_content, summary, user_info)
+            
+            # 记录到用户记忆（如果存在）
+            agent_key = f"{user_email}_pdf_generator_{conv_id}" if conv_id else f"{user_email}_pdf_generator"
+            if agent_key in user_agents:
+                memory = user_agents[agent_key]['memory']
+                memory.chat_memory.add_user_message(user_message)
+                memory.chat_memory.add_ai_message(f"已生成PDF报告: {pdf_result}")
+            
+            return pdf_result
+            
+        except Exception as e:
+            return f"PDF生成失败: {str(e)}"
+        
+    except Exception as e:
+        return f"PDF生成过程中出现错误: {str(e)}"
+
 # 保留原来的函数用于兼容性
-def get_agent_response(user_message, user_email, agent_type="general"):
+def get_agent_response(user_message, user_email, agent_type="general", conv_id=None):
     """获取完整的AI响应（非流式）"""
     response_text = ""
-    for chunk in get_agent_response_stream(user_message, user_email, agent_type):
+    for chunk in get_agent_response_stream(user_message, user_email, agent_type, conv_id):
         response_text += chunk
     return response_text
 
 # 清理用户智能体
-def clear_user_agents(user_email: str):
+def clear_user_agents(user_email: str, conv_id=None):
     """清理用户的所有智能体实例"""
-    keys_to_remove = [key for key in user_agents.keys() if key.startswith(user_email)]
-    for key in keys_to_remove:
+    if conv_id:
+        # 清理特定对话的智能体
+        agent_keys = [key for key in user_agents.keys() if key.startswith(f"{user_email}_") and conv_id in key]
+    else:
+        # 清理用户的所有智能体
+        agent_keys = [key for key in user_agents.keys() if key.startswith(f"{user_email}_")]
+    
+    for key in agent_keys:
         del user_agents[key]
