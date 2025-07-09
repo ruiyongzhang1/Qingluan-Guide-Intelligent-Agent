@@ -7,3 +7,5 @@ requests==2.31.0
 pydantic==2.5.0
 sqlite3
 redis==5.0.1
+reportlab==4.4.2
+markdown==3.8.2
