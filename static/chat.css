@@ -5,7 +5,7 @@
   --bg-gradient: linear-gradient(135deg, #ffffff 0%, #ffffff 100%); /* 背景渐变 */
   --ai-bubble-border: rgba(239, 239, 242, 0.2); /* AI消息边框颜色 */
   --user-bubble-border: rgba(255, 255, 255, 0.3); /* 用户消息边框颜色 */
-  --bubble-shadow: 0 4px 12px rgba(255, 255, 255, 0.08); /* 消息气泡阴影 */
+  --bubble-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* 消息气泡阴影 */
   --input-shadow: 0 4px 20px rgba(102, 126, 234, 0.15); /* 输入框阴影 */
   --header-height: 70px; /* 头部高度 */
 }
@@ -161,7 +161,7 @@ header {
 
 /* 聊天内容区域 */
 .chat-content {
-  width: 61.8vw; /* 使用vw单位确保严格按屏幕宽度计算 */
+  width: 61.8%; /* 使用vw单位确保严格按屏幕宽度计算 */
   max-width: 900px; 
   min-width: 320px; 
   margin: 0 auto; 
@@ -174,6 +174,7 @@ header {
 /* 聊天记录框 */
 .chat-box {
   flex: 1; 
+  width: 100%;
   overflow-y: auto; 
   padding: 32px 0 0 0; 
   padding-bottom: calc(20px + 56px + 40px + 20px); /* 底部留白 */
@@ -184,7 +185,7 @@ header {
 /* 消息容器 */
 .message {
   display: grid;
-  margin-bottom: 20px; 
+  margin-bottom: 15px; 
   width: 100%; /* 占满chat-content的宽度 */
   max-width: 900px;
   margin-left: auto;
@@ -222,7 +223,7 @@ header {
   color: #475569; 
   border-radius: 16px 16px 16px 4px; 
   border: 1px solid var(--ai-bubble-border);
-  max-width: 100%; /* AI消息最大宽度 */
+  width: 100%; /* AI消息最大宽度 */
 }
 
 /* 用户消息气泡 */
@@ -243,17 +244,7 @@ header {
   transition: background 0.2s;
 }
 
-/* 输入框外部容器 */
-.input-wrapper {
-  position: relative; 
-  background: rgba(255,255,255,0.65); /* 半透明白色 */
-  border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(12px) saturate(1.2);
-  -webkit-backdrop-filter: blur(12px) saturate(1.2);
-  transition: all 0.3s ease;
-}
+
 
 /* 初始输入框居中定位 */
 .input-wrapper.centered {
@@ -261,33 +252,36 @@ header {
   top: 50%; 
   left: 50%; 
   transform: translate(-50%, -50%); 
+  max-width: 900px;
   z-index: 1000; 
-  width: 61.8vw; /* 使用vw单位确保严格按屏幕宽度计算 */
+  width: 61.8%; /* 与聊天内容区域宽度保持一致 */
 }
 
 /* 输入后输入框固定底部 */
 .input-wrapper.bottom {
   position: fixed; 
   bottom: 20px; 
+  max-width: 900px;
   left: 50%; 
   transform: translateX(-50%); 
   z-index: 100; 
-  width: 61.8vw; /* 使用vw单位确保严格按屏幕宽度计算 */
+  width: 61.8%; /* 与聊天内容区域宽度保持一致 */
 }
 
 /* 输入框本体 */
 .input-wrapper {
   display: flex;
-  flex-direction: column; /* 垂直排列 textarea 和按钮 */
+  flex-direction: column;
   gap: 12px;
-  width: 100%;
   background: rgba(255, 255, 255, 0.85);
   border-radius: 30px;
-  box-shadow: var(--input-shadow, 0 4px 16px rgba(0,0,0,0.1));
+  box-shadow: var(--input-shadow, 0 4px 16px rgba(0, 0, 0, 0.1));
   border: 1px solid rgba(102, 126, 234, 0.3);
   padding: 12px 20px;
   backdrop-filter: blur(4px);
+  box-sizing: border-box;
 }
+
 
 /* 输入框样式 */
 #message-input {
@@ -360,26 +354,26 @@ header {
 /* 响应式设计：中屏 */
 @media (max-width: 1200px) {
   .chat-content {
-    width: 85vw; 
-    max-width: 100vw; 
+    width: 85%; 
+    max-width: 800px; 
   }
   
   .input-wrapper.centered,
   .input-wrapper.bottom {
-    width: 85vw; 
+    width: 85%; 
   }
 }
 
 /* 响应式设计：小屏 */
 @media (max-width: 768px) {
   .chat-content {
-    width: 95vw; 
-    max-width: 100vw; 
+    width: 95%; 
+    max-width: 100%; 
   }
   
   .input-wrapper.centered,
   .input-wrapper.bottom {
-    width: 95vw; 
+    width: 95%; 
   }
 
   .chat-box {
@@ -411,13 +405,13 @@ header {
 /* 响应式设计：超小屏 */
 @media (max-width: 480px) {
   .chat-content {
-    width: 98vw; 
-    max-width: 100vw; 
+    width: 98%; 
+    max-width: 100%; 
   }
   
   .input-wrapper.centered,
   .input-wrapper.bottom {
-    width: 98vw; 
+    width: 98%; 
   }
 
   .chat-box {
