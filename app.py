@@ -81,14 +81,22 @@ def login():
 
 @app.route('/register', methods=['POST'])
 def register():
-    email = request.form['email']
-    password = request.form['password']
-    confirm_password = request.form['password2']
+    # 注册表单已拆分为 username + domain 下拉框，前端已拼接 email 到隐藏 input
+    email = request.form.get('email', '').strip()
+    password = request.form.get('password', '').strip()
+    confirm_password = request.form.get('password2', '').strip()
 
+    # 邮箱后缀白名单
+    allowed_domains = ['@qq.com', '@gmail.com', '@outlook.com', '@163.com', '@foxmail.com']
+
+    # 校验邮箱和密码
     if not email or not password or not confirm_password:
         return render_template('login.html', error="所有字段都必须填写")
     if password != confirm_password:
         return render_template('login.html', error="两次输入的密码不一致")
+    # 检查邮箱格式和后缀
+    if '@' not in email or not any(email.endswith(domain) for domain in allowed_domains):
+        return render_template('login.html', error="仅支持指定邮箱后缀注册")
     if add_user(email, password):
         session['email'] = email
         return redirect(url_for('chat'))
@@ -164,6 +172,7 @@ def plan_travel():
 - 目的地：{data.get('destination', '')}
 - 旅行日期：{data.get('start_date', '')} 到 {data.get('end_date', '')}
 - 预算：￥{data.get('budget', 0)} 人民币
+- 随行人数：{data.get('traveler_count', 1)}人
 - 旅行偏好：{', '.join(data.get('preferences', []))}
 - 住宿类型偏好：{data.get('accommodation_type', '')}
 - 交通方式偏好：{', '.join(data.get('transportation_mode', []))}
@@ -171,12 +180,12 @@ def plan_travel():
 
 【请提供以下完整信息】:
 1. 目的地概况和必游景点推荐
-2. 航班搜索和预订建议（具体航班信息和价格）
-3. 住宿推荐和预订建议（具体酒店信息和价格）
+2. 航班搜索和预订建议（具体航班信息和价格）（考虑随行人数）
+3. 住宿推荐和预订建议（具体酒店信息和价格）（考虑随行人数）
 4. 详细的日程安排（按天分解，包括时间、地点、活动）
-5. 当地交通和路线规划
-6. 餐厅推荐和美食指南
-7. 详细的预算分配和费用估算
+5. 当地交通和路线规划（考虑随行人数）
+6. 餐厅推荐和美食指南（考虑随行人数）
+7. 详细的预算分配和费用估算（考虑随行人数）
 8. 实用信息（天气、注意事项、紧急联系方式等）
 9. 备选方案和应急计划
 
