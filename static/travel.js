@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
             start_date: document.getElementById('start_date').value,
             end_date: document.getElementById('end_date').value,
             budget: parseInt(document.getElementById('budget').value),
+            traveler_count: parseInt(document.getElementById('traveler_count').value),
             accommodation_type: document.getElementById('accommodation_type').value,
             preferences: Array.from(document.querySelectorAll('#preferences .preference-tag.selected')).map(tag => tag.dataset.value),
             transportation_mode: Array.from(document.querySelectorAll('#transportation .preference-tag.selected')).map(tag => tag.dataset.value),
@@ -127,6 +128,7 @@ function formatTravelRequest(formData) {
 - 🎯 目的地：${formData.destination}  
 - 📅 旅行日期：${formData.start_date} 至 ${formData.end_date}
 - 💰 预算：￥${formData.budget} 人民币
+- 👥 随行人数：${formData.traveler_count}人
 - 🏨 住宿偏好：${formData.accommodation_type}
 
 **旅行偏好：** ${formData.preferences.join(', ')}
