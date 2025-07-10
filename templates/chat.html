@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="{{ url_for('static', filename='icon.png') }}" type="image/png">
     <title>青鸾向导</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.5/purify.min.js"></script>
@@ -20,33 +20,35 @@
                 <h1>青鸾向导</h1>
             </div>
             <div class="header-buttons">
-                <button id="new-chat-btn" class="header-btn">
-                     新建对话
-                </button>
-                <button id="history-btn" class="header-btn">
-                     历史对话
-                </button>
-                <a href="/travel" class="header-btn">
-                     旅行规划
-                </a>
+                <button id="new-chat-btn" class="header-btn">新建对话</button>
+                <button id="history-btn" class="header-btn">历史对话</button>
+                <a href="/travel" class="header-btn">旅行规划</a>
             </div>
             <div class="user-info">
-                <span>{{ email }}</span>
-                <a href="/logout" class="logout-btn">退出</a>
+                <img src="/static/background.jpg" alt="用户头像" class="user-avatar" />
+                <span><i class="fa-solid fa-envelope"></i> {{ email }}</span>
+                <a href="/logout" class="logout-btn">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> 退出
+                </a>
             </div>
         </header>
 
         <!-- 聊天框 -->
-        <div class="chat-box" id="chat-box">
-        </div>
-
-        <div class="input-area">
-            <div class="input-wrapper">
-                <textarea id="message-input" placeholder="请输入信息..." rows="2"></textarea>
-                <button id="send-btn">发送</button>
+        <div class="chat-container">
+            <div class="chat-content">
+                <div class="chat-box" id="chat-box"></div>
+                <div class="input-wrapper centered" id="input-wrapper">
+                    <textarea id="message-input" placeholder="" rows="2"></textarea>
+                    <button id="send-btn" aria-label="发送">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.8" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 21V3M12 3L6 9M12 3L18 9"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
+
+
 
     <!-- 历史对话弹窗 -->
     <div id="history-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1000; justify-content:center; align-items:center;">
@@ -55,12 +57,12 @@
                 <h3>📜 历史对话</h3>
                 <button id="close-history" style="background:none; border:none; color:#667eea; cursor:pointer; font-size:20px;">✖</button>
             </div>
-            <div style="height:500px; overflow-y:auto; padding:20px; background:rgba(248, 249, 255, 0.5);">
+            <div class="history-content" style="height:500px; overflow-y:auto; padding:20px;">
                 <div id="history-list">
                     <div style="text-align:center; color:#667eea; padding:20px;">加载中...</div>
                 </div>
             </div>
-            <div style="padding:20px; border-top:1px solid rgba(102, 126, 234, 0.1); text-align:right; background:rgba(248, 249, 255, 0.5);">
+            <div class="history-footer" style="padding:20px; border-top:1px solid rgba(102, 126, 234, 0.1); text-align:right;">
                 <button id="clear-history" style="margin-right:10px; padding:10px 20px; background:rgba(102, 126, 234, 0.1); border:2px solid rgba(102, 126, 234, 0.2); border-radius:10px; cursor:pointer; color:#667eea; font-weight:600;">清除历史</button>
                 <button id="close-history-btn" style="padding:10px 20px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; border:none; border-radius:10px; cursor:pointer; font-weight:600;">关闭</button>
             </div>
