@@ -21,11 +21,11 @@
                 {% endif %}
                 <form action="/login" method="POST">
                     <div class="form-group">
-                        <label for="email">电子邮箱</label>
+                        <label for="email">电子邮箱<span class="required-star">*</span></label>
                         <input type="email" id="email" name="email" required>
                     </div>
                     <div class="form-group">
-                        <label for="password">密码</label>
+                        <label for="password">密码<span class="required-star">*</span></label>
                         <input type="password" id="password" name="password" required>
                     </div>
                     <button type="submit" class="btn">登录</button>
@@ -40,18 +40,27 @@
                 <div class="error-message">无效账号</div>
                 {% endif %}
                 -->
-                <form action="/register" method="POST">
+                <form action="/register" method="POST" id="registerForm">
                     <div class="form-group">
-                        <label for="reg-email">电子邮箱</label>
-                        <input type="email" id="reg-email" name="email" required>
+                        <label for="reg-username">电子邮箱<span class="required-star">*</span></label>
+                        <div class="email-input-group">
+                            <input type="text" id="reg-username" name="username" required placeholder="请输入邮箱用户名">
+                            <select id="reg-domain" name="domain" required>
+                                <option value="@qq.com">@qq.com</option>
+                                <option value="@gmail.com">@gmail.com</option>
+                                <option value="@outlook.com">@outlook.com</option>
+                                <option value="@163.com">@163.com</option>
+                                <option value="@foxmail.com">@foxmail.com</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label for="reg-password">密码</label>
+                        <label for="reg-password">密码<span class="required-star">*</span></label>
                         <input type="password" id="reg-password" name="password" required>
                     </div>
                     <div class="form-group">
-                        <label for="reg-password2">再次确认密码</label> <!-- 修正 for 属性 -->
-                        <input type="password" id="reg-password2" name="password2" required> <!-- 修改 type -->
+                        <label for="reg-password2">再次确认密码<span class="required-star">*</span></label>
+                        <input type="password" id="reg-password2" name="password2" required>
                     </div>
                     <button type="submit" class="btn">立即注册</button>
                 </form>
@@ -71,6 +80,28 @@
             e.preventDefault();
             document.getElementById('register-form').style.display = 'none';
             document.getElementById('login-form').style.display = 'block';
+        });
+        // 注册表单邮箱拼接与校验
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            const username = document.getElementById('reg-username').value.trim();
+            const domain = document.getElementById('reg-domain').value;
+            const email = username + domain;
+            // 简单校验用户名部分
+            if (!username.match(/^[a-zA-Z0-9._%-]+$/)) {
+                alert('邮箱用户名格式不正确');
+                e.preventDefault();
+                return false;
+            }
+            // 拼接邮箱到隐藏input
+            let hidden = document.getElementById('reg-email-hidden');
+            if (!hidden) {
+                hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'email';
+                hidden.id = 'reg-email-hidden';
+                this.appendChild(hidden);
+            }
+            hidden.value = email;
         });
     </script>
 </body>
