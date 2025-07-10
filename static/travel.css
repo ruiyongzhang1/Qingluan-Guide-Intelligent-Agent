@@ -390,24 +390,26 @@ body {
 
 /* 退出按钮样式 */
 .logout-btn {
-    background: rgba(255, 255, 255, 0.3);
-    border: 1px solid rgba(226, 232, 240, 0.5);
-    color: #334155;
-    padding: 6px 14px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(6px);
+  padding: 6px 12px;
+  background: rgba(227, 225, 225, 0.1);
+  border: 1px solid rgba(187, 185, 185, 0.3);
+  border-radius: 8px;
+  color: #cbc8c8;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(2px);
 }
 
 .logout-btn:hover {
-    background: rgba(241, 245, 249, 0.5);
-    color: #1e3a8a;
-    border-color: #cbd5e1;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  background: rgba(239, 68, 68, 0.2);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+  transform: translateY(-1px);
 }
+
 
 
 
