@@ -45,25 +45,23 @@ document.addEventListener('DOMContentLoaded', function () {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
 
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.className = 'bubble';
+
         if (isUser) {
-            messageDiv.textContent = content;
+            bubbleDiv.textContent = content;
         } else {
             const rawHtml = marked.parse(content);
             const cleanHtml = DOMPurify.sanitize(rawHtml);
-            messageDiv.innerHTML = cleanHtml;
-            
+            bubbleDiv.innerHTML = cleanHtml;
             // 立即应用代码高亮
-            // 只对当前消息中的代码块应用高亮
-            const codeBlocks = messageDiv.querySelectorAll('pre code');
+            const codeBlocks = bubbleDiv.querySelectorAll('pre code');
             codeBlocks.forEach(block => {
-                // 检查是否已经有语言类
                 if (!block.className.includes('language-')) {
-                    // 尝试从父元素或兄弟元素中获取语言信息
                     const preElement = block.closest('pre');
                     if (preElement && preElement.className.includes('language-')) {
                         block.className = preElement.className;
                     } else {
-                        // 默认使用 javascript，但可以根据内容推断
                         const codeContent = block.textContent || '';
                         if (codeContent.includes('def ') || codeContent.includes('import ') || codeContent.includes('print(')) {
                             block.className = 'language-python';
@@ -76,24 +74,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 hljs.highlightElement(block);
             });
-            
-            // 对行内代码应用高亮
-            const inlineCodes = messageDiv.querySelectorAll('code:not(pre code)');
+            const inlineCodes = bubbleDiv.querySelectorAll('code:not(pre code)');
             inlineCodes.forEach(code => {
                 if (!code.className.includes('language-')) {
                     code.className = 'language-javascript';
                 }
                 hljs.highlightElement(code);
             });
-            
-            // 确保所有代码元素都被正确高亮
-            messageDiv.querySelectorAll('code').forEach(code => {
+            bubbleDiv.querySelectorAll('code').forEach(code => {
                 if (!code.classList.contains('hljs')) {
                     hljs.highlightElement(code);
                 }
             });
         }
 
+        messageDiv.appendChild(bubbleDiv);
         chatBox.appendChild(messageDiv);
         const welcome = document.querySelector('.welcome-message');
         if (welcome) welcome.remove();
@@ -124,6 +119,14 @@ document.addEventListener('DOMContentLoaded', function () {
     async function sendMessage() {
         const message = messageInput.value.trim();
         if (!message) return;
+        
+        // 如果是第一次发送消息，将输入框移到底部
+        const inputWrapper = document.getElementById('input-wrapper');
+        if (inputWrapper.classList.contains('centered')) {
+            inputWrapper.classList.remove('centered');
+            inputWrapper.classList.add('bottom');
+        }
+        
         // 禁用输入框和发送按钮，防止重复发送
         sendBtn.disabled = true;
         messageInput.disabled = true;
@@ -147,9 +150,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
             removeLoading();
             
-            // 创建AI消息容器
+            // 创建AI消息容器，保持与历史记录一致的结构
             const aiMessageDiv = document.createElement('div');
             aiMessageDiv.className = 'message ai-message streaming';
+            
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'bubble';
+            
+            aiMessageDiv.appendChild(bubbleDiv);
             chatBox.appendChild(aiMessageDiv);
             
             // 使用 EventSource 处理 SSE
@@ -163,6 +171,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 if (done) {
                     console.log('Stream finished, total chunks:', chunkCount); // 调试信息
+                    // 移除streaming类，确保与历史记录样式一致
+                    aiMessageDiv.classList.remove('streaming');
+                    bubbleDiv.removeAttribute('data-response-text');
                     break;
                 }
                 
@@ -181,7 +192,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             
                             if (data.error) {
                                 console.error('Server error:', data.error); // 调试信息
-                                aiMessageDiv.innerHTML = `<div style="color: #e74c3c;">Error: ${data.error}</div>`;
+                                bubbleDiv.innerHTML = `<div style="color: #e74c3c;">Error: ${data.error}</div>`;
                                 break;
                             }
                             
@@ -190,17 +201,17 @@ document.addEventListener('DOMContentLoaded', function () {
                                 console.log(`Chunk ${chunkCount}:`, data.chunk.substring(0, 50) + '...'); // 调试信息
                                 
                                 // 累积响应文本（类似旅行规划页面的方式）
-                                let responseText = aiMessageDiv.getAttribute('data-response-text') || '';
+                                let responseText = bubbleDiv.getAttribute('data-response-text') || '';
                                 responseText += data.chunk;
-                                aiMessageDiv.setAttribute('data-response-text', responseText);
+                                bubbleDiv.setAttribute('data-response-text', responseText);
                                 
                                 // 重新解析完整的Markdown内容
                                 const rawHtml = marked.parse(responseText);
                                 const cleanHtml = DOMPurify.sanitize(rawHtml);
-                                aiMessageDiv.innerHTML = cleanHtml;
+                                bubbleDiv.innerHTML = cleanHtml;
                                 
                                 // 立即应用代码高亮
-                                const codeBlocks = aiMessageDiv.querySelectorAll('pre code');
+                                const codeBlocks = bubbleDiv.querySelectorAll('pre code');
                                 codeBlocks.forEach(block => {
                                     // 检查是否已经有语言类
                                     if (!block.className.includes('language-')) {
@@ -223,7 +234,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     hljs.highlightElement(block);
                                 });
                                 
-                                const inlineCodes = aiMessageDiv.querySelectorAll('code:not(pre code)');
+                                const inlineCodes = bubbleDiv.querySelectorAll('code:not(pre code)');
                                 inlineCodes.forEach(code => {
                                     if (!code.className.includes('language-')) {
                                         code.className = 'language-javascript';
@@ -238,7 +249,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 console.log('Stream completed'); // 调试信息
                                 // 流式输出完成，移除光标效果和临时数据
                                 aiMessageDiv.classList.remove('streaming');
-                                aiMessageDiv.removeAttribute('data-response-text');
+                                bubbleDiv.removeAttribute('data-response-text');
                                 break;
                             }
                         } catch (e) {
@@ -260,6 +271,8 @@ document.addEventListener('DOMContentLoaded', function () {
             // 重新启用输入框和发送按钮
             sendBtn.disabled = false;
             messageInput.disabled = false;
+            // 重新将焦点设置到输入框，方便用户继续输入
+            messageInput.focus();
         }
     }
 
@@ -383,7 +396,16 @@ document.addEventListener('DOMContentLoaded', function () {
                         const isUser = msg.is_user || msg.isUser || false;
                         addMessage(text, isUser);
                     });
+                    
+                    // 加载历史对话后，确保输入框在底部
+                    const inputWrapper = document.getElementById('input-wrapper');
+                    inputWrapper.classList.remove('centered');
+                    inputWrapper.classList.add('bottom');
+                    
                     historyModal.style.display = 'none';
+                    
+                    // 加载历史对话后，将焦点设置到输入框
+                    messageInput.focus();
                     
                     // 确保历史记录中的代码也能正确高亮
                     const codeBlocks = chatBox.querySelectorAll('pre code');
@@ -422,8 +444,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const welcome = document.createElement('div');
         welcome.className = 'welcome-message';
-        welcome.innerHTML = '<p>欢迎来到青鸾向导！我是您的AI助手，有什么可以帮助您的吗？</p>';
+        welcome.innerHTML = '<p>欢迎来到青鸾向导！<br>我是您的智能助手，无论是出行安排，还是问题解答，都随时为您服务。<br><span style="color: #667eea; font-weight: 600;">有什么可以帮助您的吗？</span></p>';
         chatBox.appendChild(welcome);
+        
+        // 重置输入框到中间位置
+        const inputWrapper = document.getElementById('input-wrapper');
+        inputWrapper.classList.remove('bottom');
+        inputWrapper.classList.add('centered');
+        
+        // 初始化时将焦点设置到输入框
+        messageInput.focus();
         
         scrollToBottom();
     }
@@ -439,12 +469,16 @@ document.addEventListener('DOMContentLoaded', function () {
     if (closeHistory) {
         closeHistory.addEventListener('click', () => {
             historyModal.style.display = 'none';
+            // 关闭历史记录弹窗后，将焦点设置到输入框
+            messageInput.focus();
         });
     }
 
     if (closeHistoryBtn) {
         closeHistoryBtn.addEventListener('click', () => {
             historyModal.style.display = 'none';
+            // 关闭历史记录弹窗后，将焦点设置到输入框
+            messageInput.focus();
         });
     }
 
@@ -488,4 +522,16 @@ document.addEventListener('DOMContentLoaded', function () {
     initChat();
     // 初始化时滚动到底
     scrollToBottom();
+    
+    // 检查是否有历史消息，如果有则确保输入框在底部
+    setTimeout(() => {
+        const messages = chatBox.querySelectorAll('.message');
+        if (messages.length > 0) {
+            const inputWrapper = document.getElementById('input-wrapper');
+            inputWrapper.classList.remove('centered');
+            inputWrapper.classList.add('bottom');
+        }
+        // 页面加载完成后确保输入框获得焦点
+        messageInput.focus();
+    }, 100);
 });
