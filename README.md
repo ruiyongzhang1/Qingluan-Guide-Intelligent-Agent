@@ -62,6 +62,7 @@ source .venv/bin/activate
 
 3. **安装依赖**
 ```bash
+pip install langchain-mcp-adapters langgraph "langchain[openai]"
 pip install -r requirements.txt
 ```
 
