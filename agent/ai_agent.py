@@ -557,7 +557,7 @@ async def multi_agent_travel_planning_async(user_request, user_email):
         print(f"[多智能体] 开始多智能体旅行规划，用户: {user_email}")
         
         # MCP服务器路径
-        mcp_server_path = "/mnt/public/code/zzy/wzh/doremi/awesome-llm-apps/mcp_ai_agents/ai_travel_planner/Qingluan-Guide-Intelligent-Agent/agent/mcp_server.py"
+        mcp_server_path = "mcp_server.py"
         
         if not os.path.exists(mcp_server_path):
             print(f"[多智能体] 错误: MCP服务器文件不存在: {mcp_server_path}")
