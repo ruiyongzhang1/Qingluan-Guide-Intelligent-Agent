@@ -65,6 +65,55 @@ source .venv/bin/activate
 pip install langchain-mcp-adapters langgraph "langchain[openai]"
 pip install -r requirements.txt
 ```
+# 📄 安装说明：wkhtmltopdf 与 Redis
+本项目依赖以下外部工具：
+- [x] `wkhtmltopdf`：用于将 HTML 转换为 PDF（例如导出聊天记录、旅行行程）
+- [x] `Redis`：用于缓存和任务队列（如聊天上下文、任务状态等）
+---
+## 📥 一、安装 wkhtmltopdf
+### ✅ 1. 下载地址
+[👉 点击下载 wkhtmltopdf Windows 版（官方）](https://wkhtmltopdf.org/downloads.html)
+> 建议下载 Windows 64-bit 版本（带 `msvc` 后缀），例如：  
+> `wkhtmltox-0.12.6-1.msvc2015-win64.exe`
+### ✅ 2. 安装步骤
+1. 双击安装程序，安装到目录：`C:\Program Files\wkhtmltopdf`
+2. 安装完成后，将以下路径加入系统环境变量（PATH）：
+   ```
+   C:\Program Files\wkhtmltopdf\bin
+   ```
+### ✅ 3. 验证是否安装成功
+在 PowerShell 或 CMD 中运行：
+```bash
+wkhtmltopdf -V
+```
+输出类似版本信息即表示安装成功。
+---
+
+## 🧠 二、安装 Redis（Windows）
+
+Redis 官方未提供 Windows 原生版本，但可通过以下方式安装：
+
+### 使用 Redis for Windows 非官方构建（微软维护过）
+- 下载地址（Releases）：  
+  [https://github.com/microsoftarchive/redis/releases](https://github.com/microsoftarchive/redis/releases)
+- 推荐版本：`Redis-x64-3.2.100.msi`
+安装完成后可以通过：
+```bash
+redis-server
+```
+来启动 Redis 服务。
+---
+## ✅ 验证 Redis 是否运行成功
+打开终端输入：
+```bash
+redis-cli ping
+```
+输出：
+```
+PONG
+```
+即表示 Redis 正常运行。
+---
 
 4. **配置环境变量**
 创建 `.env` 文件：
@@ -310,28 +359,6 @@ python app.py
 # 应用将在 http://localhost:5000 启动
 ```
 
-### 生产环境部署
-```bash
-# 使用Gunicorn（推荐）
-pip install gunicorn
-gunicorn -w 4 -b 0.0.0.0:5000 app:app
-
-# 使用uWSGI
-pip install uwsgi
-uwsgi --http :5000 --wsgi-file app.py --callable app
-```
-
-### Docker部署
-```dockerfile
-FROM python:3.9-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-EXPOSE 5000
-CMD ["python", "app.py"]
-```
-
 ## 🔧 故障排除
 
 ### 常见问题解决
@@ -396,12 +423,5 @@ CMD ["python", "app.py"]
 - [SQLite](https://www.sqlite.org/) - 嵌入式数据库引擎
 - [LangChain](https://langchain.com/) - AI应用开发框架
 
-## 📞 联系方式
-
-- **项目地址**: [GitHub Repository](https://github.com/your-username/QL_guide)
-- **问题反馈**: [Issues页面](https://github.com/your-username/QL_guide/issues)
-- **功能建议**: [Discussions](https://github.com/your-username/QL_guide/discussions)
-
----
 
 **青鸾向导** - 让AI助手更智能，让对话更自然！ 🚀✨
