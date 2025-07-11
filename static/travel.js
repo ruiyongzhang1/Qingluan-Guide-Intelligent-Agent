@@ -41,7 +41,8 @@ document.addEventListener('DOMContentLoaded', function() {
             destination: document.getElementById('destination').value,
             start_date: document.getElementById('start_date').value,
             end_date: document.getElementById('end_date').value,
-            budget: parseInt(document.getElementById('budget').value),
+            budget_per_person: parseInt(document.getElementById('budget_per_person').value),
+            travelers: parseInt(document.getElementById('travelers').value),
             accommodation_type: document.getElementById('accommodation_type').value,
             preferences: Array.from(document.querySelectorAll('#preferences .preference-tag.selected')).map(tag => tag.dataset.value),
             transportation_mode: Array.from(document.querySelectorAll('#transportation .preference-tag.selected')).map(tag => tag.dataset.value),
@@ -49,9 +50,22 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         
         // 验证必填字段
-        if (!formData.source || !formData.destination || !formData.start_date || !formData.end_date || !formData.budget || !formData.accommodation_type) {
+        if (!formData.source || !formData.destination || !formData.start_date || !formData.end_date || !formData.budget_per_person || !formData.travelers || !formData.accommodation_type) {
             alert('请填写所有必填信息！');
             return;
+        }
+        
+        // 验证旅行人数
+        if (formData.travelers < 1 || formData.travelers > 20) {
+            alert('旅行人数必须在1-20人之间！');
+            return;
+        }
+        
+        // 验证人均预算合理性
+        if (formData.budget_per_person < 500) {
+            if (!confirm(`人均预算仅为 ${formData.budget_per_person} 元，可能无法提供高质量的旅行方案。是否继续？`)) {
+                return;
+            }
         }
         
         if (formData.preferences.length === 0) {
@@ -77,7 +91,37 @@ document.addEventListener('DOMContentLoaded', function() {
             sendMessage();
         }
     });
+    
+    // 添加预算显示更新监听器
+    const budgetInput = document.getElementById('budget_per_person');
+    const travelersSelect = document.getElementById('travelers');
+    
+    if (budgetInput && travelersSelect) {
+        budgetInput.addEventListener('input', updateBudgetDisplay);
+        travelersSelect.addEventListener('change', updateBudgetDisplay);
+        
+        // 初始化显示
+        updateBudgetDisplay();
+    }
 });
+
+// 格式化旅行请求
+function formatTravelRequest(formData) {
+    const totalBudget = formData.budget_per_person * formData.travelers;
+    return `🧳 **旅行规划请求**
+
+**基本信息：**
+- 📍 出发地：${formData.source}
+- 🎯 目的地：${formData.destination}  
+- 📅 旅行日期：${formData.start_date} 至 ${formData.end_date}
+- 👥 旅行人数：${formData.travelers} 人
+- 💰 人均预算：${formData.budget_per_person} 人民币（总预算约 ${totalBudget} 人民币）
+- 🏨 住宿偏好：${formData.accommodation_type}
+
+**旅行偏好：** ${formData.preferences.join(', ')}
+**交通方式：** ${formData.transportation_mode.join(', ')}
+**饮食要求：** ${formData.dietary_restrictions.join(', ')}`;
+}
 
 // 初始化日期值
 function initializeDates() {
@@ -123,6 +167,7 @@ function startTravelPlanning(formData) {
     const loadingMessage = addTypingIndicator();
     
     // 发送规划请求
+    console.log('Starting travel planning with data:', formData);
     fetch('/plan_travel', {
         method: 'POST',
         headers: {
@@ -163,6 +208,7 @@ function startTravelPlanning(formData) {
                     sendBtn.disabled = false;
                     messageInput.placeholder = '对计划有疑问？随时问我！';
                     
+                    console.log('Travel planning completed, response length:', responseText.length);
                     return;
                 }
                 
@@ -173,20 +219,26 @@ function startTravelPlanning(formData) {
                     if (line.startsWith('data: ')) {
                         try {
                             const data = JSON.parse(line.slice(6));
+                            console.log('Travel planning chunk received:', data);
+                            
                             if (data.chunk) {
                                 responseText += data.chunk;
                                 contentDiv.innerHTML = marked.parse(responseText);
                                 contentDiv.scrollTop = contentDiv.scrollHeight;
                             } else if (data.error) {
+                                console.error('Travel planning error:', data.error);
                                 contentDiv.innerHTML = `<div style="color: red;">错误: ${data.error}</div>`;
                                 isPlanning = false;
                                 planButton.innerHTML = '✨ 重新制定计划';
                                 planButton.disabled = false;
                                 planButton.classList.remove('loading');
                                 return;
+                            } else if (data.done) {
+                                console.log('Travel planning stream completed');
+                                return;
                             }
                         } catch (e) {
-                            console.log('解析数据出错:', e);
+                            console.error('解析旅行规划数据出错:', e, line);
                         }
                     }
                 }
@@ -206,22 +258,6 @@ function startTravelPlanning(formData) {
         planButton.disabled = false;
         planButton.classList.remove('loading');
     });
-}
-
-// 格式化旅行请求
-function formatTravelRequest(formData) {
-    return `🧳 **旅行规划请求**
-
-**基本信息：**
-- 📍 出发地：${formData.source}
-- 🎯 目的地：${formData.destination}  
-- 📅 旅行日期：${formData.start_date} 至 ${formData.end_date}
-- 💰 预算：$${formData.budget} 人民币
-- 🏨 住宿偏好：${formData.accommodation_type}
-
-**旅行偏好：** ${formData.preferences.join(', ')}
-**交通方式：** ${formData.transportation_mode.join(', ')}
-**饮食要求：** ${formData.dietary_restrictions.join(', ')}`;
 }
 
 // 快速提问
@@ -288,7 +324,10 @@ function sendMessage() {
         
         function readStream() {
             reader.read().then(({done, value}) => {
-                if (done) return;
+                if (done) {
+                    console.log('Travel message stream completed, response length:', responseText.length);
+                    return;
+                }
                 
                 const chunk = decoder.decode(value);
                 const lines = chunk.split('\n');
@@ -297,16 +336,22 @@ function sendMessage() {
                     if (line.startsWith('data: ')) {
                         try {
                             const data = JSON.parse(line.slice(6));
+                            console.log('Travel message chunk received:', data);
+                            
                             if (data.chunk) {
                                 responseText += data.chunk;
                                 contentDiv.innerHTML = marked.parse(responseText);
                                 contentDiv.scrollTop = contentDiv.scrollHeight;
                             } else if (data.error) {
+                                console.error('Travel message error:', data.error);
                                 contentDiv.innerHTML = `<div style="color: red;">错误: ${data.error}</div>`;
+                                return;
+                            } else if (data.done) {
+                                console.log('Travel message stream completed');
                                 return;
                             }
                         } catch (e) {
-                            console.log('解析数据出错:', e);
+                            console.error('解析旅行消息数据出错:', e, line);
                         }
                     }
                 }
@@ -322,6 +367,23 @@ function sendMessage() {
         loadingMessage.remove();
         addMessage(`<div style="color: red;">发送失败: ${error.message}</div>`, false);
     });
+}
+
+// 动态计算总预算
+function updateBudgetDisplay() {
+    const budgetInput = document.getElementById('budget_per_person');
+    const travelersSelect = document.getElementById('travelers');
+    const budgetLabel = budgetInput.parentElement.querySelector('.form-label');
+    
+    if (budgetInput.value && travelersSelect.value) {
+        const budgetPerPerson = parseInt(budgetInput.value);
+        const travelers = parseInt(travelersSelect.value);
+        const totalBudget = budgetPerPerson * travelers;
+        
+        budgetLabel.innerHTML = `人均预算（人民币）<span style="color: #666; font-size: 0.9em;">  总预算约 ${totalBudget} 元</span>`;
+    } else {
+        budgetLabel.textContent = '人均预算（人民币）';
+    }
 }
 
 // 添加消息到聊天区域
@@ -344,4 +406,4 @@ function addMessage(content, isUser) {
     chatBox.scrollTop = chatBox.scrollHeight;
     
     return messageDiv;
-} 
+}

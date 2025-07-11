@@ -138,7 +138,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const res = await fetch('/send_message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message })
+                body: JSON.stringify({ 
+                    message: message,
+                    agent_type: 'general'  // 添加智能体类型
+                })
             });
 
             if (!res.ok) {

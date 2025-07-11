@@ -1,17 +1,36 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, stream_template
-from ai_agent import get_agent_response_stream, clear_user_agents
+from agent.ai_agent import (
+    get_agent_response, 
+    get_agent_response_stream, 
+    get_mcp_response_sync, 
+    multi_agent_travel_planning_sync,
+    user_agents
+)
 from database_self import db
-import os
-import json
 from dotenv import load_dotenv
 from datetime import datetime
-
+import os
 import uuid
+import json
+import time
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
+
+# 清理用户智能体实例
+def clear_user_agents(email):
+    # 删除与该用户相关的所有智能体实例
+    keys_to_delete = []
+    for key in user_agents:
+        if key.startswith(email):
+            keys_to_delete.append(key)
+    
+    for key in keys_to_delete:
+        del user_agents[key]
+    
+    return True
 
 # 添加用户函数
 def add_user(email, password):
@@ -113,27 +132,27 @@ def send_message():
     session["current_conv_id"] = conv_id
 
     try:
-        # 使用流式响应
+        # 直接使用MCP响应函数获取完整响应
         def generate_response():
             try:
-                full_response = ""
-                chunk_count = 0
+                print(f"[Flask] 使用MCP响应处理消息: {user_message[:100]}...")
+                # 首先尝试使用MCP响应
+                mcp_response = get_mcp_response_sync(user_message, email, agent_type)
                 
-                # 获取流式响应，传入智能体类型
-                for chunk in get_agent_response_stream(user_message, email, agent_type):
-                    if chunk:
-                        chunk_count += 1
-                        full_response += chunk
-                        print(f"Streaming chunk {chunk_count}: {chunk[:50]}...")
+                if mcp_response:
+                    print(f"[Flask] 成功获取MCP响应，长度: {len(mcp_response)}")
+                    # 模拟流式输出，将完整响应分块发送
+                    chunk_size = 50
+                    for i in range(0, len(mcp_response), chunk_size):
+                        chunk = mcp_response[i:i+chunk_size]
                         yield f"data: {json.dumps({'chunk': chunk})}\n\n"
-                
-                print(f"Total chunks: {chunk_count}, Full response length: {len(full_response)}")
-                
-                # 保存完整的对话历史
-                save_conversation(email, [
-                    {"text": user_message, "is_user": True, "agent_type": agent_type},
-                    {"text": full_response, "is_user": False, "agent_type": agent_type},
-                ], conv_id)
+                        time.sleep(0.01)  # 添加小延迟使前端体验更流畅
+                else:
+                    print("[Flask] MCP响应失败，使用备用响应")
+                    # 如果MCP失败，使用备用的流式响应
+                    for chunk in get_agent_response_stream(user_message, email, agent_type, conv_id):
+                        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                        time.sleep(0.01)
                 
                 # 发送完成信号
                 yield f"data: {json.dumps({'done': True})}\n\n"
@@ -158,6 +177,11 @@ def plan_travel():
     
     data = request.get_json()
     
+    # 计算预算信息
+    budget_per_person = data.get('budget_per_person', 0)
+    travelers = data.get('travelers', 1)
+    total_budget = budget_per_person * travelers
+    
     # 构建旅行规划消息
     travel_message = f"""
 请为我制定一个完整的旅行规划方案：
@@ -166,7 +190,8 @@ def plan_travel():
 - 出发地：{data.get('source', '')}
 - 目的地：{data.get('destination', '')}
 - 旅行日期：{data.get('start_date', '')} 到 {data.get('end_date', '')}
-- 预算：${data.get('budget', 0)} 美元
+- 旅行人数：{travelers} 人
+- 人均预算：{budget_per_person} 人民币（总预算约 {total_budget} 人民币）
 - 旅行偏好：{', '.join(data.get('preferences', []))}
 - 住宿类型偏好：{data.get('accommodation_type', '')}
 - 交通方式偏好：{', '.join(data.get('transportation_mode', []))}
@@ -183,7 +208,7 @@ def plan_travel():
 8. 实用信息（天气、注意事项、紧急联系方式等）
 9. 备选方案和应急计划
 
-请确保所有推荐都在预算范围内，并充分考虑我的偏好和限制条件。
+请确保所有推荐都在预算范围内，并充分考虑我的偏好和限制条件。请使用你可用的搜索工具来获取最新的航班、酒店和景点信息。
 """
 
     email = session["email"]
@@ -191,23 +216,37 @@ def plan_travel():
     session["current_conv_id"] = conv_id
 
     try:
+        # 使用多智能体系统处理旅行规划
         def generate_travel_response():
             try:
-                full_response = ""
-                chunk_count = 0
+                print(f"[Flask] 使用多智能体系统处理旅行规划请求")
+                # 使用多智能体流水线进行旅行规划
+                multi_agent_response = multi_agent_travel_planning_sync(travel_message, email)
                 
-                # 使用旅行智能体类型
-                for chunk in get_agent_response_stream(travel_message, email):
-                    if chunk:
-                        chunk_count += 1
-                        full_response += chunk
+                if multi_agent_response:
+                    print(f"[Flask] 成功获取多智能体旅行规划响应，长度: {len(multi_agent_response)}")
+                    # 模拟流式输出，将完整响应分块发送
+                    chunk_size = 50
+                    for i in range(0, len(multi_agent_response), chunk_size):
+                        chunk = multi_agent_response[i:i+chunk_size]
                         yield f"data: {json.dumps({'chunk': chunk})}\n\n"
-                
-                # 保存对话历史
-                save_conversation(email, [
-                    {"text": travel_message, "is_user": True, "agent_type": "travel"},
-                    {"text": full_response, "is_user": False, "agent_type": "travel"},
-                ], conv_id)
+                        time.sleep(0.01)  # 添加小延迟使前端体验更流畅
+                else:
+                    print("[Flask] 多智能体响应失败，使用备用MCP响应")
+                    # 如果多智能体失败，回退到单智能体MCP响应
+                    mcp_response = get_mcp_response_sync(travel_message, email, agent_type="travel")
+                    if mcp_response:
+                        chunk_size = 50
+                        for i in range(0, len(mcp_response), chunk_size):
+                            chunk = mcp_response[i:i+chunk_size]
+                            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                            time.sleep(0.01)
+                    else:
+                        print("[Flask] 所有MCP响应失败，使用最终备用响应")
+                        # 最终备用响应
+                        for chunk in get_agent_response_stream(travel_message, email, agent_type="travel", conv_id=conv_id):
+                            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                            time.sleep(0.01)
                 
                 yield f"data: {json.dumps({'done': True})}\n\n"
             except Exception as e:

@@ -42,9 +42,27 @@
                             <input type="date" class="form-control" id="end_date" required>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">预算（人民币）</label>
-                        <input type="number" class="form-control" id="budget" placeholder="例：3000" min="0" required>
+                    <div style="display: flex; gap: 20px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label class="form-label">旅行人数</label>
+                            <select class="form-control" id="travelers" required>
+                                <option value="1">1人</option>
+                                <option value="2" selected>2人</option>
+                                <option value="3">3人</option>
+                                <option value="4">4人</option>
+                                <option value="5">5人</option>
+                                <option value="6">6人</option>
+                                <option value="7">7人</option>
+                                <option value="8">8人</option>
+                                <option value="9">9人</option>
+                                <option value="10">10人</option>
+                                <option value="more">10人以上</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 2;">
+                            <label class="form-label">人均预算（人民币）</label>
+                            <input type="number" class="form-control" id="budget_per_person" placeholder="例：3000（每人预算）" min="0" required>
+                        </div>
                     </div>
                 </div>
 

@@ -44,10 +44,14 @@ python -m venv .venv
 .venv\Scripts\activate
 # Linux/Mac
 source .venv/bin/activate
+
+# 或者使用conda环境
+conda activate myenv
 ```
 
 3. **安装依赖**
 ```bash
+pip install langchain-mcp-adapters langgraph "langchain[openai]"
 pip install -r requirements.txt
 ```
 
@@ -77,12 +81,23 @@ python app.py
 ## 📁 项目结构
 
 ```
-new_py/
+Qingluan-Guide-Intelligent-Agent/
 ├── app.py                 # Flask主应用
-├── ai_agent.py           # AI智能体核心逻辑
 ├── database_self.py      # 数据库操作模块
 ├── db_manager.py         # 数据库管理工具（运行该脚本可以查看数据库具体信息）
+├── debug_agent.py        # 调试代理工具
+├── test_mcp.py           # MCP测试脚本
 ├── app.db               # SQLite数据库文件
+├── requirements.txt     # Python依赖包列表
+├── .env                 # 环境变量配置文件
+├── agent/               # AI智能体模块
+│   ├── ai_agent.py      # AI智能体核心逻辑
+│   ├── mcp_server.py    # MCP服务器实现
+│   ├── pdf_generator.py # PDF生成器
+│   ├── prompts.py       # 提示词模板
+│   ├── mcp.md          # MCP相关文档
+│   ├── REFACTOR_README.md # 重构说明文档
+│   └── app.db          # 智能体专用数据库
 ├── templates/           # HTML模板
 │   ├── index.html       # 首页
 │   ├── login.html       # 登录页面
@@ -91,18 +106,25 @@ new_py/
 ├── static/              # 静态资源
 │   ├── style.css        # 主样式文件
 │   ├── chat.css         # 聊天界面样式
+│   ├── travel.css       # 旅行规划样式
 │   ├── script.js        # 聊天和登录JavaScript
-│   └── travel.js        # 旅行规划JavaScript
-└── redis/               # Redis相关文件 (智能体记忆使用redis尚未实现)
+│   ├── travel.js        # 旅行规划JavaScript
+│   ├── background.jpg   # 背景图片
+│   ├── icon.png         # 应用图标
+│   ├── R.jpg           # 其他图片资源
+│   └── pdfs/           # PDF文件存储目录
+└── __pycache__/         # Python字节码缓存
 ```
 
 ## 🔧 核心模块
 
-### AI智能体系统 (`ai_agent.py`)
+### AI智能体系统 (`agent/ai_agent.py`)
 - **多智能体架构**: 支持不同类型的AI助手
 - **流式响应**: 实时生成和显示AI回复
 - **旅行规划**: 专门的旅行规划智能体
 - **搜索集成**: 集成外部搜索API获取实时信息
+- **MCP支持**: Model Context Protocol服务器实现
+- **PDF生成**: 支持将旅行规划生成PDF文档
 
 ### 数据库系统 (`database_self.py`)
 - **用户管理**: 用户注册、登录、验证
