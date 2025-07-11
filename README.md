@@ -12,9 +12,12 @@
 
 ### ✈️ 旅行规划
 - **智能规划**: 基于用户需求自动生成旅行方案
-- **多信息源**: 集成航班、酒店、景点、餐厅等搜索功能
+- **多信息源**: 集成航班、酒店、景点、餐厅等实时搜索功能
+- **实时查询**: 通过Google Maps、Google Flights、Google Hotels等API获取最新信息
+- **价格对比**: 支持航班日历价格查询，帮助选择最优出行时间
 - **预算控制**: 根据用户预算提供个性化推荐
 - **详细方案**: 包含行程安排、交通规划、餐饮推荐等
+- **PDF导出**: 自动生成专业的旅行规划PDF报告
 
 ### 💾 数据管理
 - **SQLite数据库**: 高效的数据存储和查询
@@ -126,6 +129,65 @@ Qingluan-Guide-Intelligent-Agent/
 - **MCP支持**: Model Context Protocol服务器实现
 - **PDF生成**: 支持将旅行规划生成PDF文档
 
+#### 🛠️ AI智能体可调用工具
+
+##### 🌍 地图搜索工具
+- **`search_google_maps`**: 搜索Google地图上的地点或服务
+  - 支持地点查询、周边服务搜索
+  - 可指定地理坐标进行精确搜索
+
+##### ✈️ 航班搜索工具
+- **`search_google_flights`**: 搜索Google航班信息
+  - 支持单程、往返、多城市航班搜索
+  - 可筛选舱位、价格、航空公司、中转次数等
+  - 支持行李、餐食、座位等附加服务查询
+- **`search_google_flights_calendar`**: 查询航班日历价格
+  - 显示指定日期范围内的价格趋势
+  - 帮助用户选择最优出行日期
+
+##### 🏨 酒店搜索工具
+- **`search_google_hotels`**: 搜索Google酒店信息
+  - 支持按价格、评分、设施筛选
+  - 可查询免费取消、特殊优惠等条件
+  - 支持房型、人数、儿童年龄等详细需求
+- **`search_google_hotels_property`**: 查询酒店详细信息
+  - 获取特定酒店的详细信息和价格
+
+##### 📝 评价信息工具
+- **`search_google_maps_reviews`**: 搜索Google地图评论数据
+  - 获取景点、餐厅、酒店的用户评价
+  - 支持按评分、时间排序筛选
+
+##### 🔍 通用搜索工具
+- **`search_google`**: Google网页搜索
+  - 获取最新的旅行资讯、攻略信息
+  - 支持地区、语言、时间范围筛选
+- **`search_google_videos`**: Google视频搜索
+  - 搜索旅行相关的视频内容
+  - 获取目的地介绍、旅行攻略视频
+- **`search_google_images`**: Google图片搜索
+  - 搜索目的地风景、美食、景点图片
+  - 支持图片大小、类型、颜色等筛选
+
+##### ⏰ 时间工具
+- **`get_current_time`**: 获取当前时间和旅行日期建议
+  - 提供多种时间格式（ISO、中文、时间戳等）
+  - 自动生成旅行日期建议（入住退房日期对）
+  - 支持未来日期计算和周末、节假日推荐
+
+##### 📄 PDF生成工具
+- **PDF报告生成**: 将旅行规划对话生成专业PDF报告
+  - 支持Markdown格式渲染
+  - 包含完整对话记录和AI总结
+  - 自动保存到`static/pdfs/`目录
+
+#### 🔧 工具特性
+- **实时数据**: 所有搜索工具都通过SearchAPI获取实时数据
+- **多语言支持**: 支持中文、英文等多种语言查询
+- **参数丰富**: 提供详细的筛选和排序参数
+- **错误处理**: 完善的错误处理和用户反馈机制
+- **异步处理**: 所有工具采用异步设计，提高响应速度
+
 ### 数据库系统 (`database_self.py`)
 - **用户管理**: 用户注册、登录、验证
 - **对话存储**: 完整的对话历史记录
@@ -216,7 +278,13 @@ python app.py
 - `FLASK_SECRET_KEY`: Flask会话密钥
 - `OPENAI_API_KEY`: OpenAI API密钥
 - `OPENAI_API_URL`: OpenAI API地址
-- `SEARCHAPI_API_KEY`: 搜索API密钥
+- `SEARCHAPI_API_KEY`: SearchAPI密钥（用于Google搜索、地图、航班、酒店查询）
+
+### API服务配置
+- **SearchAPI**: 提供Google Maps、Google Flights、Google Hotels等搜索服务
+  - 官网: https://www.searchapi.io/
+  - 支持的搜索引擎: Google搜索、Google地图、Google航班、Google酒店、Google图片等
+  - 实时数据获取，支持多种筛选和排序参数
 
 ### 数据库配置
 - 数据库文件: `app.db`
