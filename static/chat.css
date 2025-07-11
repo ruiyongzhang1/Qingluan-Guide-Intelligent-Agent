@@ -223,7 +223,7 @@ header {
   color: #475569; 
   border-radius: 16px 16px 16px 4px; 
   border: 1px solid var(--ai-bubble-border);
-  width: 100%; /* AI消息最大宽度 */
+  width: 100%; /* AI消息最大宽度，与用户消息保持一致 */
 }
 
 /* 用户消息气泡 */
