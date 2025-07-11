@@ -177,39 +177,9 @@ def plan_travel():
     
     data = request.get_json()
     
-    # 计算预算信息
-    budget_per_person = data.get('budget_per_person', 0)
-    travelers = data.get('travelers', 1)
-    total_budget = budget_per_person * travelers
-    
-    # 构建旅行规划消息
-    travel_message = f"""
-请为我制定一个完整的旅行规划方案：
-
-【基本信息】:
-- 出发地：{data.get('source', '')}
-- 目的地：{data.get('destination', '')}
-- 旅行日期：{data.get('start_date', '')} 到 {data.get('end_date', '')}
-- 旅行人数：{travelers} 人
-- 人均预算：{budget_per_person} 人民币（总预算约 {total_budget} 人民币）
-- 旅行偏好：{', '.join(data.get('preferences', []))}
-- 住宿类型偏好：{data.get('accommodation_type', '')}
-- 交通方式偏好：{', '.join(data.get('transportation_mode', []))}
-- 饮食限制：{', '.join(data.get('dietary_restrictions', []))}
-
-【请提供以下完整信息】:
-1. 目的地概况和必游景点推荐
-2. 航班搜索和预订建议（具体航班信息和价格）
-3. 住宿推荐和预订建议（具体酒店信息和价格）
-4. 详细的日程安排（按天分解，包括时间、地点、活动）
-5. 当地交通和路线规划
-6. 餐厅推荐和美食指南
-7. 详细的预算分配和费用估算
-8. 实用信息（天气、注意事项、紧急联系方式等）
-9. 备选方案和应急计划
-
-请确保所有推荐都在预算范围内，并充分考虑我的偏好和限制条件。请使用你可用的搜索工具来获取最新的航班、酒店和景点信息。
-"""
+    # 使用新的提示词模板格式化旅行请求
+    from agent.prompts import format_travel_request_prompt
+    travel_message = format_travel_request_prompt(data)
 
     email = session["email"]
     conv_id = session.get("current_conv_id") or str(uuid.uuid4())

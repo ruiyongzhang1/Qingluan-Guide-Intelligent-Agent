@@ -322,21 +322,7 @@ def get_agent_response_stream(user_message, user_email, agent_type="general", co
                 
                 response = model.invoke(messages)
                 full_response = response.content
-        else:
-            model = ChatOpenAI(
-                api_key=api_key,
-                model="gpt-4.1",
-                base_url=base_url,
-                streaming=False
-            )
-            
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_message)
-            ]
-            
-            response = model.invoke(messages)
-            full_response = response.content
+        
         
         try:
             if hasattr(memory, 'add_message'):
