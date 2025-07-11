@@ -64,8 +64,9 @@ async def load_mcp_tools_async():
         return []
         
     try:
-        # 直接使用绝对路径
-        mcp_server_path = "mcp_server.py"
+        # 直接使用agent目录中的MCP服务器路径
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        mcp_server_path = os.path.join(current_dir, "mcp_server.py")
         
         if not os.path.exists(mcp_server_path):
             print(f"警告: MCP服务器文件不存在: {mcp_server_path}")
@@ -262,6 +263,9 @@ def get_agent_response_stream(user_message, user_email, agent_type="general", co
         planner = agent_instance['planner']
         memory = agent_instance['memory']
         
+        # 初始化 full_response 变量
+        full_response = ""
+        
         # 如果有可用的MCP工具和LangGraph智能体，使用它们
         if planner.agent and planner.tools:
             print("使用MCP智能体处理请求")
@@ -322,6 +326,23 @@ def get_agent_response_stream(user_message, user_email, agent_type="general", co
                 
                 response = model.invoke(messages)
                 full_response = response.content
+        else:
+            # 如果没有MCP工具，使用普通模型
+            print("没有可用的MCP工具，使用普通模型")
+            model = ChatOpenAI(
+                api_key=api_key,
+                model="gpt-4.1",
+                base_url=base_url,
+                streaming=False
+            )
+            
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_message)
+            ]
+            
+            response = model.invoke(messages)
+            full_response = response.content
         
         
         try:
@@ -440,8 +461,9 @@ async def get_mcp_response_async(user_message, user_email, agent_type="general")
     try:
         print(f"[MCP] 开始MCP调用，用户: {user_email}, 类型: {agent_type}")
         
-        # MCP服务器路径（与test_mcp.py完全相同）
-        mcp_server_path = "mcp_server.py"
+        # MCP服务器路径
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        mcp_server_path = os.path.join(current_dir, "mcp_server.py")
         
         if not os.path.exists(mcp_server_path):
             print(f"[MCP] 错误: MCP服务器文件不存在: {mcp_server_path}")
@@ -543,7 +565,8 @@ async def multi_agent_travel_planning_async(user_request, user_email):
         print(f"[多智能体] 开始多智能体旅行规划，用户: {user_email}")
         
         # MCP服务器路径
-        mcp_server_path = "mcp_server.py"
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        mcp_server_path = os.path.join(current_dir, "mcp_server.py")
         
         if not os.path.exists(mcp_server_path):
             print(f"[多智能体] 错误: MCP服务器文件不存在: {mcp_server_path}")
