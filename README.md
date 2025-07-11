@@ -70,7 +70,9 @@ pip install -r requirements.txt
 本项目依赖以下外部工具：
 - [x] `wkhtmltopdf`：用于将 HTML 转换为 PDF（例如导出聊天记录、旅行行程）
 - [x] `Redis`：用于缓存和任务队列（如聊天上下文、任务状态等）
+
 📥 一、安装 wkhtmltopdf
+
 ✅ 1. 下载地址
 
 [👉 点击下载 wkhtmltopdf Windows 版（官方）](https://wkhtmltopdf.org/downloads.html)
